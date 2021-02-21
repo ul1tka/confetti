@@ -1,0 +1,83 @@
+#
+# Copyright (C) 2021 Vlad Lazarenko <vlad@lazarenko.me>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# Travis CI Build Config Explorer - https://config.travis-ci.com/explore
+#
+
+language: cpp
+
+.linux_: &linux
+  os: linux
+  dist: focal
+  arch: amd64
+  addons:
+    apt:
+      sources:
+        - sourceline: 'ppa:ubuntu-toolchain-r/test'
+        - sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main'
+          key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+      packages:
+        - g++-10
+        - clang-12
+  script:
+    - ./build.sh
+
+.use_gcc_: &use_gcc
+  CC=gcc-10 CXX=g++-10 GCOV=gcov-10
+
+.use_clang_: &use_clang
+  CC=clang-12 CXX=clang++-12
+
+.macos_: &macos
+  os: osx
+  osx_image: xcode12.2
+  script:
+    - ./build.sh
+
+matrix:
+  include:
+    - <<: *linux
+      env:
+        - *use_gcc
+        - BUILD_TYPE=Debug
+    - <<: *linux
+      env:
+        - *use_gcc
+        - BUILD_TYPE=Release
+    - <<: *linux
+      env:
+        - *use_clang
+        - BUILD_TYPE=Debug
+    - <<: *linux
+      env:
+        - *use_clang
+        - BUILD_TYPE=Release
+    - <<: *linux
+      before_install:
+        - pip install --user cpp-coveralls
+      env:
+        - *use_gcc
+        - BUILD_TYPE=Coverage
+    - <<: *macos
+      env:
+        - BUILD_TYPE=Debug CC=clang CXX=clang++
+    - <<: *macos
+      env:
+        - BUILD_TYPE=Release CC=clang CXX=clang++
+
+notifications:
+  email: false

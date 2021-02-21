@@ -1,0 +1,14 @@
+---
+Language: Cpp
+BasedOnStyle: WebKit
+ColumnLimit: 100
+IndentPPDirectives: AfterHash
+KeepEmptyLinesAtTheStartOfBlocks: false
+AlwaysBreakTemplateDeclarations: Yes
+CompactNamespaces: true
+SpaceBeforeCpp11BracedList: false
+Cpp11BracedListStyle: true
+IndentCaseLabels: true
+FixNamespaceComments: true
+BreakInheritanceList: BeforeComma
+...
