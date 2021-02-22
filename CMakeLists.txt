@@ -19,13 +19,87 @@ cmake_minimum_required(VERSION 3.16.3 FATAL_ERROR)
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
-project(confetti LANGUAGES CXX DESCRIPTION "C++ Configuration Library")
+project(confetti LANGUAGES C CXX DESCRIPTION "C++ Configuration Library")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
+# Coverage Build
+if (CMAKE_BUILD_TYPE MATCHES "Coverage")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 --coverage")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 --coverage")
+endif ()
+
 include(FetchContent)
+include(ExternalProject)
+
+#
+# Lua (https://github.com/lua/lua)
+#
+
+FetchContent_Declare(
+        lua
+        GIT_REPOSITORY https://github.com/lua/lua.git
+        GIT_TAG v5.4.2
+)
+
+FetchContent_GetProperties(lua)
+
+if (NOT lua_POPULATED)
+    FetchContent_Populate(lua)
+    add_library(
+            lua
+            ${lua_SOURCE_DIR}/lapi.c
+            ${lua_SOURCE_DIR}/lcorolib.c
+            ${lua_SOURCE_DIR}/ldo.c
+            ${lua_SOURCE_DIR}/linit.c
+            ${lua_SOURCE_DIR}/lmem.c
+            ${lua_SOURCE_DIR}/loslib.c
+            ${lua_SOURCE_DIR}/lstrlib.c
+            ${lua_SOURCE_DIR}/ltm.c
+            ${lua_SOURCE_DIR}/lvm.c
+            ${lua_SOURCE_DIR}/lauxlib.c
+            ${lua_SOURCE_DIR}/lctype.c
+            ${lua_SOURCE_DIR}/ldump.c
+            ${lua_SOURCE_DIR}/liolib.c
+            ${lua_SOURCE_DIR}/loadlib.c
+            ${lua_SOURCE_DIR}/lparser.c
+            ${lua_SOURCE_DIR}/ltable.c
+            ${lua_SOURCE_DIR}/lzio.c
+            ${lua_SOURCE_DIR}/lbaselib.c
+            ${lua_SOURCE_DIR}/ldblib.c
+            ${lua_SOURCE_DIR}/lfunc.c
+            ${lua_SOURCE_DIR}/llex.c
+            ${lua_SOURCE_DIR}/lobject.c
+            ${lua_SOURCE_DIR}/lstate.c
+            ${lua_SOURCE_DIR}/ltablib.c
+            ${lua_SOURCE_DIR}/lundump.c
+            ${lua_SOURCE_DIR}/lcode.c
+            ${lua_SOURCE_DIR}/ldebug.c
+            ${lua_SOURCE_DIR}/lgc.c
+            ${lua_SOURCE_DIR}/lmathlib.c
+            ${lua_SOURCE_DIR}/lopcodes.c
+            ${lua_SOURCE_DIR}/lstring.c
+            ${lua_SOURCE_DIR}/ltests.c
+            ${lua_SOURCE_DIR}/lutf8lib.c
+    )
+    target_compile_options(
+            lua
+            PRIVATE
+            -mtune=native
+            -march=native
+    )
+    target_include_directories(lua SYSTEM INTERFACE ${lua_SOURCE_DIR})
+
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_link_libraries(lua PRIVATE dl m)
+    endif ()
+
+    add_executable(lua-interpreter ${lua_SOURCE_DIR}/lua.c)
+    set_target_properties(lua-interpreter PROPERTIES OUTPUT_NAME "lua")
+    target_link_libraries(lua-interpreter lua)
+endif ()
 
 #
 # Google Benchmark (https://github.com/google/benchmark)
@@ -71,14 +145,6 @@ endif ()
 enable_testing()
 
 #
-# Coverage Build
-#
-
-if (CMAKE_BUILD_TYPE MATCHES "Coverage")
-    set(CMAKE_CXX_FLAGS "-g -O0 --coverage")
-endif ()
-
-#
 # Confetti Library
 #
 
@@ -93,7 +159,10 @@ configure_file(
 add_library(
         confetti
         conf/version.cc
+        conf/lua.cc
 )
+
+target_link_libraries(confetti PUBLIC lua)
 
 target_include_directories(
         confetti
@@ -113,10 +182,6 @@ target_compile_options(
         -Wno-padded
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-zero-as-null-pointer-constant
-        -fno-exceptions
-        -fno-rtti
-        -ffast-math
-        -fvisibility=hidden
         -mtune=native
         -march=native
 )
@@ -128,16 +193,9 @@ endif ()
 add_executable(
         test-confetti
         conf/version_test.cc
-)
+        conf/lua_test.cc)
 
-target_link_libraries(
-        test-confetti
-        PRIVATE
-        gtest
-        gmock
-        gtest_main
-        confetti
-)
+target_link_libraries(test-confetti PRIVATE gtest gmock gtest_main confetti)
 
 target_compile_options(test-confetti PRIVATE -Wno-global-constructors)
 
