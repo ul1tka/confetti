@@ -18,16 +18,20 @@
 #define CONF_LUA_HH
 
 #include <cstddef>
+#include <filesystem>
 #include <stdexcept>
 
 extern "C" {
 struct lua_State;
 };
 
-namespace conf::internal {
+namespace conf {
+namespace internal {
 
 class LuaException final : public std::runtime_error {
 public:
+    explicit LuaException(const char* error_message);
+
     explicit LuaException(lua_State* state);
 
     ~LuaException() override;
@@ -37,7 +41,7 @@ public:
 
 class LuaState final {
 public:
-    LuaState() noexcept;
+    LuaState();
 
     LuaState(const LuaState&) = delete;
 
@@ -53,13 +57,39 @@ public:
 
     operator lua_State*() const noexcept { return state_; }
 
+    explicit operator bool() const noexcept { return state_ != nullptr; }
+
+    [[noreturn]] void raise() const;
+
+    void check(int result) const;
+
+    void runFile(const std::filesystem::path& file);
+
+    void runCode(std::string_view code);
+
 private:
     lua_State* state_;
 
     /// @see http://www.lua.org/manual/5.1/manual.html#lua_Alloc
     static void* alloc(void* aux, void* ptr, size_t osize, size_t nsize) noexcept;
+
+    void run();
 };
 
-} // namespace conf::internal
+} // namespace internal
+
+class LuaTree {
+public:
+    LuaTree();
+
+    void loadFile(const std::filesystem::path& file);
+
+    void loadCode(std::string_view code);
+
+private:
+    internal::LuaState state_;
+};
+
+} // namespace conf
 
 #endif

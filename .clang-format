@@ -6,6 +6,7 @@ IndentPPDirectives: AfterHash
 KeepEmptyLinesAtTheStartOfBlocks: false
 AlwaysBreakTemplateDeclarations: Yes
 CompactNamespaces: true
+NamespaceIndentation: None
 SpaceBeforeCpp11BracedList: false
 Cpp11BracedListStyle: true
 IndentCaseLabels: true

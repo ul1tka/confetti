@@ -17,6 +17,7 @@
 #include "lua.hh"
 
 extern "C" {
+#include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
 }
@@ -24,7 +25,8 @@ extern "C" {
 #include <cassert>
 #include <string>
 
-namespace conf::internal {
+namespace conf {
+namespace internal {
 
 static std::string getErrorMessage(lua_State* state) noexcept
 {
@@ -33,11 +35,17 @@ static std::string getErrorMessage(lua_State* state) noexcept
         const char* message = lua_tostring(state, -1);
         if (message) {
             result.assign("Fatal Lua error: ").append(message);
+            lua_pop(state, 1);
             return result;
         }
     }
     result.assign("Fatal Lua error");
     return result;
+}
+
+LuaException::LuaException(const char* error_message)
+    : std::runtime_error{error_message}
+{
 }
 
 LuaException::LuaException(lua_State* state)
@@ -49,12 +57,14 @@ LuaException::~LuaException() = default;
 
 int LuaException::raise(lua_State* state) { throw LuaException{state}; }
 
-LuaState::LuaState() noexcept
+LuaState::LuaState()
     : state_{}
 {
     state_ = lua_newstate(&alloc, this);
     if (!state_)
-        return;
+        throw LuaException{"Cannot create Lua stack"};
+
+    lua_atpanic(state_, &LuaException::raise);
 
     luaopen_base(state_);
     luaopen_coroutine(state_);
@@ -66,8 +76,6 @@ LuaState::LuaState() noexcept
     luaopen_math(state_);
     luaopen_debug(state_);
     luaopen_package(state_);
-
-    lua_atpanic(state_, &LuaException::raise);
 }
 
 LuaState::LuaState(LuaState&& other) noexcept
@@ -77,6 +85,14 @@ LuaState::LuaState(LuaState&& other) noexcept
 }
 
 LuaState::~LuaState() { close(); }
+
+void LuaState::raise() const { LuaException::raise(state_); }
+
+void LuaState::check(int result) const
+{
+    if (result != LUA_OK)
+        raise();
+}
 
 void LuaState::close() noexcept
 {
@@ -104,4 +120,31 @@ void* LuaState::alloc(
     return realloc(ptr, nsize);
 }
 
-} // namespace conf::internal
+void LuaState::run()
+{
+    check(lua_pcall(state_, 0, 1, 0));
+    lua_pop(state_, lua_gettop(state_));
+}
+
+void LuaState::runFile(const std::filesystem::path& file)
+{
+    check(luaL_loadfile(state_, file.native().c_str()));
+    run();
+}
+
+void LuaState::runCode(std::string_view code)
+{
+    const auto address = std::to_string(reinterpret_cast<std::ptrdiff_t>(code.data()));
+    check(luaL_loadbuffer(state_, code.data(), code.size(), address.c_str()));
+    run();
+}
+
+} // namespace internal
+
+LuaTree::LuaTree() { }
+
+void LuaTree::loadFile(const std::filesystem::path& file) { state_.runFile(file); }
+
+void LuaTree::loadCode(std::string_view code) { state_.runCode(code); }
+
+} // namespace conf

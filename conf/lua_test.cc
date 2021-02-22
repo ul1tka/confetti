@@ -22,6 +22,7 @@ extern "C" {
 
 #include <gtest/gtest.h>
 #include <memory>
+#include <type_traits>
 
 TEST(LuaException, RaiseWithoutState)
 {
@@ -58,14 +59,39 @@ TEST(LuaException, RaiseWithMessage)
     }
 }
 
-TEST(LuaState, BasicScript)
+TEST(LuaState, Basic)
+{
+    static_assert(!std::is_copy_assignable_v<conf::internal::LuaState>);
+    static_assert(!std::is_copy_constructible_v<conf::internal::LuaState>);
+
+    conf::internal::LuaState state1;
+    EXPECT_TRUE(state1);
+
+    conf::internal::LuaState state2{std::move(state1)};
+
+    EXPECT_FALSE(state1);
+    EXPECT_TRUE(state2);
+
+    state1 = std::move(state2);
+
+    EXPECT_TRUE(state1);
+    EXPECT_FALSE(state2);
+
+    EXPECT_THROW(state1.raise(), conf::internal::LuaException);
+
+    EXPECT_NO_THROW(state1.check(LUA_OK));
+    EXPECT_THROW(state1.check(LUA_ERRMEM), conf::internal::LuaException);
+}
+
+TEST(LuaState, RunCode)
 {
     conf::internal::LuaState state;
-    const auto stackElements = lua_gettop(state);
-    EXPECT_EQ(0, luaL_dostring(state, R"!(print("Hello from Lua"))!"));
-    EXPECT_EQ(stackElements, lua_gettop(state));
-    EXPECT_NE(0, luaL_dostring(state, R"!(wrong syntax)!"));
-    EXPECT_EQ(stackElements + 1, lua_gettop(state));
-    lua_pop(state, 1);
-    EXPECT_EQ(stackElements, lua_gettop(state));
+    EXPECT_NO_THROW(state.runCode(R"!(print("Hello from Lua"))!"));
+    EXPECT_THROW(state.runCode(R"!(wrong syntax)!"), conf::internal::LuaException);
+}
+
+TEST(LuaTree, LoadFile)
+{
+    conf::LuaTree tree;
+    tree.loadFile(std::filesystem::path{CONF_SOURCE_DIR} / "conf" / "lua_test.lua");
 }
