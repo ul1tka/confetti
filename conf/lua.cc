@@ -28,6 +28,14 @@ extern "C" {
 namespace conf {
 namespace internal {
 
+LuaStackGuard::LuaStackGuard(lua_State* state) noexcept
+    : state_{state}
+    , top_{lua_gettop(state)}
+{
+}
+
+LuaStackGuard::~LuaStackGuard() noexcept { lua_settop(state_, top_); }
+
 static std::string getErrorMessage(lua_State* state) noexcept
 {
     std::string result;
@@ -61,6 +69,7 @@ LuaState::LuaState()
     : state_{}
 {
     state_ = lua_newstate(&alloc, this);
+
     if (!state_)
         throw LuaException{"Cannot create Lua stack"};
 
@@ -141,10 +150,54 @@ void LuaState::runCode(std::string_view code)
 
 } // namespace internal
 
-LuaTree::LuaTree() { }
+LuaTree::LuaTree()
+{
+    lua_newtable(state_);
+    lua_setglobal(state_, "Confetti");
+}
+
+void LuaTree::raiseKeyNotFound(std::string_view name)
+{
+    std::string msg = "Key not found: ";
+    msg.append(name);
+    throw std::runtime_error{std::move(msg)};
+}
+
+int LuaTree::loadField(std::string_view name) const noexcept
+{
+    auto type = lua_getfield(state_, -1, name.data());
+    while (type == LUA_TFUNCTION) {
+        if (lua_pcall(state_, 0, 1, 0) != LUA_OK)
+            internal::LuaException::raise(state_);
+        type = lua_type(state_, -1);
+    }
+    return type;
+}
+
+std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
+{
+    std::optional<std::string> result;
+    internal::LuaStackGuard _{state_};
+
+    lua_getglobal(state_, "Confetti");
+
+    switch (loadField(name)) {
+        case LUA_TNIL:
+            break;
+        case LUA_TBOOLEAN:
+            result.emplace(1, '0' + lua_toboolean(state_, -1));
+            break;
+        default: {
+            size_t size{};
+            if (auto data = lua_tolstring(state_, -1, &size))
+                result.emplace(data, size);
+            break;
+        }
+    }
+
+    return result;
+}
 
 void LuaTree::loadFile(const std::filesystem::path& file) { state_.runFile(file); }
-
-void LuaTree::loadCode(std::string_view code) { state_.runCode(code); }
 
 } // namespace conf
