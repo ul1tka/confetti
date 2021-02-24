@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 
 extern "C" {
@@ -27,6 +28,20 @@ struct lua_State;
 
 namespace conf {
 namespace internal {
+
+class LuaStackGuard {
+public:
+    explicit LuaStackGuard(lua_State* state) noexcept;
+
+    ~LuaStackGuard() noexcept;
+
+    LuaStackGuard(const LuaStackGuard&) = delete;
+    LuaStackGuard& operator=(const LuaStackGuard&) = delete;
+
+private:
+    lua_State* state_;
+    int top_;
+};
 
 class LuaException final : public std::runtime_error {
 public:
@@ -84,9 +99,21 @@ public:
 
     void loadFile(const std::filesystem::path& file);
 
-    void loadCode(std::string_view code);
+    [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const;
+
+    [[nodiscard]] std::string getString(std::string_view name) const
+    {
+        auto result = tryGetString(name);
+        if (!result.has_value())
+            raiseKeyNotFound(name);
+        return result.value();
+    }
 
 private:
+    [[nodiscard]] int loadField(std::string_view name) const noexcept;
+
+    [[noreturn]] static void raiseKeyNotFound(std::string_view name);
+
     internal::LuaState state_;
 };
 
