@@ -31,6 +31,9 @@ struct lua_State;
 namespace conf {
 namespace internal {
 
+template <typename T, typename... O>
+constexpr static auto is_any_v = (std::is_same_v<T, O> || ...);
+
 class LuaStackGuard {
 public:
     explicit LuaStackGuard(lua_State* state) noexcept;
@@ -129,11 +132,15 @@ public:
     LuaTree& operator=(const LuaTree&) = default;
     LuaTree& operator=(LuaTree&&) = default;
 
-    const std::optional<LuaTree> tryGetChild(std::string_view name) const;
+    [[nodiscard]] const std::optional<LuaTree> tryGetChild(std::string_view name) const;
 
-    const LuaTree getChild(std::string_view name) const;
+    [[nodiscard]] const LuaTree getChild(std::string_view name) const;
 
-    const LuaTree operator[](std::string_view name) const { return getChild(name); }
+    [[nodiscard]] LuaTree operator[](std::string_view name) const { return getChild(name); }
+
+    [[nodiscard]] std::optional<double> tryGetDouble(std::string_view name) const;
+
+    [[nodiscard]] double getDouble(std::string_view name) const { return get<double>(name); }
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const;
 
@@ -145,9 +152,11 @@ public:
     template <typename T>
     [[nodiscard]] std::optional<T> tryGet(std::string_view name) const
     {
-        static_assert(std::is_same_v<T, std::string>, "Type not supported");
+        static_assert(internal::is_any_v<T, std::string, double>, "Type not supported");
         if constexpr (std::is_same_v<T, std::string>) {
             return tryGetString(name);
+        } else if constexpr (std::is_same_v<T, double>) {
+            return tryGetDouble(name);
         }
     }
 
