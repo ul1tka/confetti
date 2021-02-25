@@ -29,12 +29,3 @@ cfg["user"] = {
     name = "Vlad Lazarenko",
     email = "vlad@lazarenko.me"
 }
-
-cfg["alias"] = {
-    co = "checkout",
-    st = "status"
-}
-
-cfg["diff"] = {
-    submodule = "log"
-}
