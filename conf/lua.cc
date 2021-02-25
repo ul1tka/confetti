@@ -23,6 +23,7 @@ extern "C" {
 }
 
 #include <cassert>
+#include <cstdlib>
 #include <string>
 
 namespace conf {
@@ -195,6 +196,32 @@ int LuaTree::loadField(std::string_view name) const noexcept
         type = lua_type(*ref_, -1);
     }
     return type;
+}
+
+std::optional<double> LuaTree::tryGetDouble(std::string_view name) const
+{
+    std::optional<double> result;
+    internal::LuaStackGuard _{*ref_};
+    ref_->push();
+    switch (loadField(name)) {
+        case LUA_TNIL:
+            break;
+        case LUA_TBOOLEAN:
+            result.emplace(lua_toboolean(*ref_, -1));
+            break;
+        case LUA_TSTRING: // TODO: Describe error properly if cannot convert...
+            if (auto data = lua_tolstring(*ref_, -1, nullptr)) {
+                char* eptr{};
+                auto value = std::strtod(data, &eptr);
+                if (eptr != nullptr && *eptr == '\0' && errno == 0)
+                    result.emplace(value);
+            }
+            break;
+        default:
+            result.emplace(lua_tonumber(*ref_, -1));
+            break;
+    }
+    return result;
 }
 
 std::optional<std::string> LuaTree::tryGetString(std::string_view name) const

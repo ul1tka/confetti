@@ -20,10 +20,20 @@ local cfg = Confetti
 
 cfg.simple_string = "Hello, Lua!"
 cfg.simple_number = 12345
+cfg.simple_double_number = 19.86
 cfg.simple_yes = true
 cfg.simple_no = false
 cfg.simple_func = function() return 2 + 2 end
-cfg.simple_nested_func = function() return function() return 2 + 2 * 2 end end
+cfg.simple_nested_func = function()
+    return function()
+        return 2 + 2 * 2
+    end
+end
+cfg.simple_nested_math = function()
+    return function()
+        return 2.5 * 2.5
+    end
+end
 
 cfg["user"] = {
     name = "Vlad Lazarenko",

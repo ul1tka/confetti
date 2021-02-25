@@ -24,6 +24,12 @@ extern "C" {
 #include <memory>
 #include <type_traits>
 
+static decltype(auto) loadTree()
+{
+    return conf::LuaTree::loadFile(
+        std::filesystem::path{CONF_SOURCE_DIR} / "conf" / "lua_test.lua");
+}
+
 TEST(LuaException, RaiseWithoutState)
 {
     try {
@@ -90,10 +96,25 @@ TEST(LuaState, RunCode)
     EXPECT_THROW(state.runCode(R"!(wrong syntax)!"), conf::internal::LuaException);
 }
 
-TEST(LuaTree, Basic)
+TEST(LuaTree, Double)
 {
-    auto tree
-        = conf::LuaTree::loadFile(std::filesystem::path{CONF_SOURCE_DIR} / "conf" / "lua_test.lua");
+    auto tree = loadTree();
+    EXPECT_DOUBLE_EQ(0.0, tree.get<double>("simple_no"));
+    EXPECT_DOUBLE_EQ(1.0, tree.get<double>("simple_yes"));
+    EXPECT_FALSE(tree.tryGet<double>("this_key_should_not_exist"));
+    EXPECT_TRUE(tree.tryGet<double>("simple_number"));
+    EXPECT_FALSE(tree.tryGetDouble("this_key_should_not_exist"));
+    EXPECT_TRUE(tree.tryGetDouble("simple_number"));
+    EXPECT_DOUBLE_EQ(12345, tree.get<double>("simple_number"));
+    EXPECT_DOUBLE_EQ(19.86, tree.get<double>("simple_double_number"));
+    EXPECT_DOUBLE_EQ(19.86, tree.getDouble("simple_double_number"));
+    EXPECT_DOUBLE_EQ(6.25, tree.get<double>("simple_nested_math"));
+    EXPECT_ANY_THROW(EXPECT_DOUBLE_EQ(0, tree.get<double>("simple_string")));
+}
+
+TEST(LuaTree, String)
+{
+    auto tree = loadTree();
 
     EXPECT_FALSE(tree.tryGetString("this_key_should_not_exist").has_value());
     EXPECT_TRUE(tree.tryGetString("simple_string").has_value());
@@ -111,11 +132,15 @@ TEST(LuaTree, Basic)
     EXPECT_EQ("4", tree.getString("simple_func"));
     EXPECT_EQ("6", tree.getString("simple_nested_func"));
 
+    EXPECT_ANY_THROW(ASSERT_FALSE(tree.get<std::string>("this_key_should_not_exist").empty()));
+}
+
+TEST(LuaTree, Child)
+{
+    auto tree = loadTree();
     EXPECT_FALSE(tree.tryGetChild("this_key_should_not_exist").has_value());
     EXPECT_TRUE(tree.tryGetChild("user").has_value());
-
     auto userTree = tree["user"];
-
     EXPECT_EQ("Vlad Lazarenko", userTree.getString("name"));
     EXPECT_EQ("vlad@lazarenko.me", tree["user"].getString("email"));
 }
