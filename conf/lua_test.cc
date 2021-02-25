@@ -101,10 +101,9 @@ TEST(LuaTree, Basic)
     EXPECT_FALSE(tree.tryGet<std::string>("this_key_should_not_exist").has_value());
     EXPECT_TRUE(tree.tryGet<std::string>("simple_string").has_value());
 
-    EXPECT_EQ("Hello, Lua!", tree.getString("simple_string"));
     EXPECT_EQ("Hello, Lua!", tree.get<std::string>("simple_string"));
 
-    EXPECT_EQ("12345", tree.getString("simple_number"));
+    EXPECT_EQ("12345", tree.get<std::string>("simple_number"));
     EXPECT_EQ("12345", tree.get<std::string>("simple_number"));
 
     EXPECT_EQ("1", tree.getString("simple_yes"));

@@ -137,7 +137,10 @@ public:
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const;
 
-    [[nodiscard]] std::string getString(std::string_view name) const;
+    [[nodiscard]] std::string getString(std::string_view name) const
+    {
+        return get<std::string>(name);
+    }
 
     template <typename T>
     [[nodiscard]] std::optional<T> tryGet(std::string_view name) const
@@ -151,10 +154,10 @@ public:
     template <typename T>
     [[nodiscard]] T get(std::string_view name) const
     {
-        static_assert(std::is_same_v<T, std::string>, "Type not supported");
-        if constexpr (std::is_same_v<T, std::string>) {
-            return getString(name);
-        }
+        auto result = tryGet<T>(name);
+        if (!result.has_value())
+            raiseKeyNotFound(name);
+        return std::move(result).value();
     }
 
 private:
