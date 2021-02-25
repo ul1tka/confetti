@@ -148,13 +148,36 @@ void LuaState::runCode(std::string_view code)
     run();
 }
 
+LuaReference::LuaReference(std::shared_ptr<LuaState> state, int ref) noexcept
+    : state_{std::move(state)}
+    , ref_{ref}
+{
+}
+
+LuaReference::LuaReference(std::shared_ptr<LuaState> state) noexcept
+    : state_{std::move(state)}
+    , ref_{luaL_ref(*state_, LUA_REGISTRYINDEX)}
+{
+}
+
+LuaReference::~LuaReference()
+{
+    if (state_ && ref_ != LUA_NOREF) {
+        luaL_unref(*state_, LUA_REGISTRYINDEX, ref_);
+        ref_ = LUA_NOREF;
+    }
+}
+
+void LuaReference::push() const { lua_rawgeti(*state_, LUA_REGISTRYINDEX, ref_); }
+
 } // namespace internal
 
-LuaTree::LuaTree()
+LuaTree::LuaTree(std::shared_ptr<internal::LuaReference> ref) noexcept
+    : ref_{std::move(ref)}
 {
-    lua_newtable(state_);
-    lua_setglobal(state_, "Confetti");
 }
+
+LuaTree::~LuaTree() { }
 
 void LuaTree::raiseKeyNotFound(std::string_view name)
 {
@@ -165,11 +188,11 @@ void LuaTree::raiseKeyNotFound(std::string_view name)
 
 int LuaTree::loadField(std::string_view name) const noexcept
 {
-    auto type = lua_getfield(state_, -1, name.data());
+    auto type = lua_getfield(*ref_, -1, name.data());
     while (type == LUA_TFUNCTION) {
-        if (lua_pcall(state_, 0, 1, 0) != LUA_OK)
-            internal::LuaException::raise(state_);
-        type = lua_type(state_, -1);
+        if (lua_pcall(*ref_, 0, 1, 0) != LUA_OK)
+            internal::LuaException::raise(*ref_);
+        type = lua_type(*ref_, -1);
     }
     return type;
 }
@@ -177,27 +200,62 @@ int LuaTree::loadField(std::string_view name) const noexcept
 std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
 {
     std::optional<std::string> result;
-    internal::LuaStackGuard _{state_};
-
-    lua_getglobal(state_, "Confetti");
-
+    internal::LuaStackGuard _{*ref_};
+    ref_->push();
     switch (loadField(name)) {
         case LUA_TNIL:
             break;
         case LUA_TBOOLEAN:
-            result.emplace(1, '0' + lua_toboolean(state_, -1));
+            result.emplace(1, '0' + lua_toboolean(*ref_, -1));
             break;
         default: {
             size_t size{};
-            if (auto data = lua_tolstring(state_, -1, &size))
+            if (auto data = lua_tolstring(*ref_, -1, &size))
                 result.emplace(data, size);
             break;
         }
     }
-
     return result;
 }
 
-void LuaTree::loadFile(const std::filesystem::path& file) { state_.runFile(file); }
+[[nodiscard]] std::string LuaTree::getString(std::string_view name) const
+{
+    auto result = tryGetString(name);
+    if (!result.has_value())
+        raiseKeyNotFound(name);
+    return result.value();
+}
+
+const std::optional<LuaTree> LuaTree::tryGetChild(std::string_view name) const
+{
+    std::optional<LuaTree> result;
+    internal::LuaStackGuard _{*ref_};
+    ref_->push();
+    switch (loadField(name)) {
+        case LUA_TTABLE:
+            result.emplace(LuaTree{std::make_shared<internal::LuaReference>(ref_->getState())});
+            break;
+    }
+    return result;
+}
+
+const LuaTree LuaTree::getChild(std::string_view name) const
+{
+    auto result = tryGetChild(name);
+    if (!result.has_value())
+        raiseKeyNotFound(name);
+    return result.value();
+}
+
+LuaTree LuaTree::loadFile(const std::filesystem::path& file)
+{
+    auto state = std::make_shared<internal::LuaState>();
+    lua_newtable(*state);
+    lua_pushvalue(*state, -1);
+    lua_setglobal(*state, "Confetti");
+    auto ref = luaL_ref(*state, LUA_REGISTRYINDEX);
+    state->runFile(file);
+    return LuaTree{std::make_shared<internal::LuaReference>(std::move(state), ref)};
+}
 
 } // namespace conf

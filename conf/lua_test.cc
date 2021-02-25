@@ -92,15 +92,31 @@ TEST(LuaState, RunCode)
 
 TEST(LuaTree, Basic)
 {
-    conf::LuaTree tree;
-    tree.loadFile(std::filesystem::path{CONF_SOURCE_DIR} / "conf" / "lua_test.lua");
+    auto tree
+        = conf::LuaTree::loadFile(std::filesystem::path{CONF_SOURCE_DIR} / "conf" / "lua_test.lua");
 
     EXPECT_FALSE(tree.tryGetString("this_key_should_not_exist").has_value());
+    EXPECT_TRUE(tree.tryGetString("simple_string").has_value());
+
+    EXPECT_FALSE(tree.tryGet<std::string>("this_key_should_not_exist").has_value());
+    EXPECT_TRUE(tree.tryGet<std::string>("simple_string").has_value());
 
     EXPECT_EQ("Hello, Lua!", tree.getString("simple_string"));
+    EXPECT_EQ("Hello, Lua!", tree.get<std::string>("simple_string"));
+
     EXPECT_EQ("12345", tree.getString("simple_number"));
+    EXPECT_EQ("12345", tree.get<std::string>("simple_number"));
+
     EXPECT_EQ("1", tree.getString("simple_yes"));
     EXPECT_EQ("0", tree.getString("simple_no"));
     EXPECT_EQ("4", tree.getString("simple_func"));
     EXPECT_EQ("6", tree.getString("simple_nested_func"));
+
+    EXPECT_FALSE(tree.tryGetChild("this_key_should_not_exist").has_value());
+    EXPECT_TRUE(tree.tryGetChild("user").has_value());
+
+    auto userTree = tree["user"];
+
+    EXPECT_EQ("Vlad Lazarenko", userTree.getString("name"));
+    EXPECT_EQ("vlad@lazarenko.me", tree["user"].getString("email"));
 }

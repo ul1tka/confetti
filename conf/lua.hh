@@ -19,8 +19,10 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <stdexcept>
+#include <type_traits>
 
 extern "C" {
 struct lua_State;
@@ -91,30 +93,78 @@ private:
     void run();
 };
 
+class LuaReference final {
+public:
+    explicit LuaReference(std::shared_ptr<LuaState> state) noexcept;
+
+    explicit LuaReference(std::shared_ptr<LuaState> state, int ref) noexcept;
+
+    ~LuaReference();
+
+    LuaReference(const LuaReference&) = delete;
+    LuaReference& operator=(const LuaReference&) = delete;
+
+    void push() const;
+
+    operator lua_State*() const noexcept { return *state_; }
+
+    std::shared_ptr<LuaState> getState() { return state_; }
+
+private:
+    std::shared_ptr<LuaState> state_;
+    int ref_;
+};
+
 } // namespace internal
 
 class LuaTree {
 public:
-    LuaTree();
+    static LuaTree loadFile(const std::filesystem::path& file);
 
-    void loadFile(const std::filesystem::path& file);
+    LuaTree(LuaTree&&) = default;
+    LuaTree(const LuaTree&) = default;
+
+    ~LuaTree();
+
+    LuaTree& operator=(const LuaTree&) = default;
+    LuaTree& operator=(LuaTree&&) = default;
+
+    const std::optional<LuaTree> tryGetChild(std::string_view name) const;
+
+    const LuaTree getChild(std::string_view name) const;
+
+    const LuaTree operator[](std::string_view name) const { return getChild(name); }
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const;
 
-    [[nodiscard]] std::string getString(std::string_view name) const
+    [[nodiscard]] std::string getString(std::string_view name) const;
+
+    template <typename T>
+    [[nodiscard]] std::optional<T> tryGet(std::string_view name) const
     {
-        auto result = tryGetString(name);
-        if (!result.has_value())
-            raiseKeyNotFound(name);
-        return result.value();
+        static_assert(std::is_same_v<T, std::string>, "Type not supported");
+        if constexpr (std::is_same_v<T, std::string>) {
+            return tryGetString(name);
+        }
+    }
+
+    template <typename T>
+    [[nodiscard]] T get(std::string_view name) const
+    {
+        static_assert(std::is_same_v<T, std::string>, "Type not supported");
+        if constexpr (std::is_same_v<T, std::string>) {
+            return getString(name);
+        }
     }
 
 private:
+    explicit LuaTree(std::shared_ptr<internal::LuaReference> ref) noexcept;
+
     [[nodiscard]] int loadField(std::string_view name) const noexcept;
 
     [[noreturn]] static void raiseKeyNotFound(std::string_view name);
 
-    internal::LuaState state_;
+    std::shared_ptr<internal::LuaReference> ref_;
 };
 
 } // namespace conf
