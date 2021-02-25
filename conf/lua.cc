@@ -218,14 +218,6 @@ std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
     return result;
 }
 
-[[nodiscard]] std::string LuaTree::getString(std::string_view name) const
-{
-    auto result = tryGetString(name);
-    if (!result.has_value())
-        raiseKeyNotFound(name);
-    return result.value();
-}
-
 const std::optional<LuaTree> LuaTree::tryGetChild(std::string_view name) const
 {
     std::optional<LuaTree> result;
