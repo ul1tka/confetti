@@ -96,6 +96,17 @@ TEST(LuaState, RunCode)
     EXPECT_THROW(state.runCode(R"!(wrong syntax)!"), conf::internal::LuaException);
 }
 
+TEST(LuaTree, Boolean)
+{
+    auto tree = loadTree();
+    EXPECT_TRUE(tree.get<bool>("simple_yes"));
+    EXPECT_FALSE(tree.get<bool>("simple_no"));
+    EXPECT_TRUE(tree.get<bool>("simple_number"));
+    EXPECT_TRUE(tree.getBoolean("simple_double_number"));
+    EXPECT_FALSE(tree.getBoolean("simple_zero"));
+    EXPECT_FALSE(tree.get<bool>("simple_string"));
+}
+
 TEST(LuaTree, Double)
 {
     auto tree = loadTree();

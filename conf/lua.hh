@@ -34,20 +34,6 @@ namespace internal {
 template <typename T, typename... O>
 constexpr static auto is_any_v = (std::is_same_v<T, O> || ...);
 
-class LuaStackGuard {
-public:
-    explicit LuaStackGuard(lua_State* state) noexcept;
-
-    ~LuaStackGuard() noexcept;
-
-    LuaStackGuard(const LuaStackGuard&) = delete;
-    LuaStackGuard& operator=(const LuaStackGuard&) = delete;
-
-private:
-    lua_State* state_;
-    int top_;
-};
-
 class LuaException final : public std::runtime_error {
 public:
     explicit LuaException(const char* error_message);
@@ -118,6 +104,20 @@ private:
     int ref_;
 };
 
+class LuaStackGuard {
+public:
+    explicit LuaStackGuard(const std::shared_ptr<LuaReference>& ref) noexcept;
+
+    ~LuaStackGuard() noexcept;
+
+    LuaStackGuard(const LuaStackGuard&) = delete;
+    LuaStackGuard& operator=(const LuaStackGuard&) = delete;
+
+private:
+    lua_State* state_;
+    int top_;
+};
+
 } // namespace internal
 
 class LuaTree {
@@ -132,11 +132,15 @@ public:
     LuaTree& operator=(const LuaTree&) = default;
     LuaTree& operator=(LuaTree&&) = default;
 
-    [[nodiscard]] const std::optional<LuaTree> tryGetChild(std::string_view name) const;
+    [[nodiscard]] std::optional<LuaTree> tryGetChild(std::string_view name) const;
 
-    [[nodiscard]] const LuaTree getChild(std::string_view name) const;
+    [[nodiscard]] LuaTree getChild(std::string_view name) const;
 
     [[nodiscard]] LuaTree operator[](std::string_view name) const { return getChild(name); }
+
+    [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view name) const;
+
+    [[nodiscard]] bool getBoolean(std::string_view name) const { return get<bool>(name); }
 
     [[nodiscard]] std::optional<double> tryGetDouble(std::string_view name) const;
 
@@ -152,11 +156,13 @@ public:
     template <typename T>
     [[nodiscard]] std::optional<T> tryGet(std::string_view name) const
     {
-        static_assert(internal::is_any_v<T, std::string, double>, "Type not supported");
+        static_assert(internal::is_any_v<T, std::string, double, bool>, "Type not supported");
         if constexpr (std::is_same_v<T, std::string>) {
             return tryGetString(name);
         } else if constexpr (std::is_same_v<T, double>) {
             return tryGetDouble(name);
+        } else if constexpr (std::is_same_v<T, bool>) {
+            return tryGetBoolean(name);
         }
     }
 
