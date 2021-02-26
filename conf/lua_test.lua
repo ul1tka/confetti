@@ -21,6 +21,7 @@ local cfg = Confetti
 cfg.simple_string = "Hello, Lua!"
 cfg.simple_number = 12345
 cfg.simple_double_number = 19.86
+cfg.simple_zero = 0
 cfg.simple_yes = true
 cfg.simple_no = false
 cfg.simple_func = function() return 2 + 2 end

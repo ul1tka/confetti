@@ -23,19 +23,24 @@ extern "C" {
 }
 
 #include <cassert>
+#include <cctype>
 #include <cstdlib>
 #include <string>
 
-namespace conf {
-namespace internal {
-
-LuaStackGuard::LuaStackGuard(lua_State* state) noexcept
-    : state_{state}
-    , top_{lua_gettop(state)}
+static bool strCaseEquals(std::string_view lhs, std::string_view rhs) noexcept
 {
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
+        [](auto x, auto y) noexcept { return std::tolower(x) == std::tolower(y); });
 }
 
-LuaStackGuard::~LuaStackGuard() noexcept { lua_settop(state_, top_); }
+template <typename... T>
+static bool strCaseAnyOf(std::string_view lhs, T... rhs) noexcept
+{
+    return (strCaseEquals(lhs, rhs) || ...);
+}
+
+namespace conf {
+namespace internal {
 
 static std::string getErrorMessage(lua_State* state) noexcept
 {
@@ -171,6 +176,15 @@ LuaReference::~LuaReference()
 
 void LuaReference::push() const { lua_rawgeti(*state_, LUA_REGISTRYINDEX, ref_); }
 
+LuaStackGuard::LuaStackGuard(const std::shared_ptr<LuaReference>& ref) noexcept
+    : state_{*ref}
+    , top_{lua_gettop(state_)}
+{
+    ref->push();
+}
+
+LuaStackGuard::~LuaStackGuard() noexcept { lua_settop(state_, top_); }
+
 } // namespace internal
 
 LuaTree::LuaTree(std::shared_ptr<internal::LuaReference> ref) noexcept
@@ -198,13 +212,55 @@ int LuaTree::loadField(std::string_view name) const noexcept
     return type;
 }
 
+std::optional<bool> LuaTree::tryGetBoolean(std::string_view name) const
+{
+    std::optional<bool> result;
+    internal::LuaStackGuard _{ref_};
+    switch (loadField(name)) {
+        case LUA_TNIL:
+        case LUA_TUSERDATA:
+        case LUA_TTABLE:
+        case LUA_TTHREAD:
+            break;
+        case LUA_TSTRING: {
+            size_t size{};
+            if (auto data = lua_tolstring(*ref_, -1, &size)) {
+                std::string_view value{data, size};
+                if (strCaseAnyOf(value, "y", "yes", "true", "1")) {
+                    result.emplace(true);
+                } else if (strCaseAnyOf(value, "n", "no", "false", "0")) {
+                    result.emplace(false);
+                } else {
+                    char* eptr{};
+                    auto n = std::strtod(data, &eptr);
+                    if (eptr != nullptr && *eptr == '\0' && errno == 0)
+                        result.emplace(n > 0);
+                    else
+                        result.emplace(false);
+                }
+            }
+            break;
+        }
+        case LUA_TBOOLEAN:
+            result.emplace(lua_toboolean(*ref_, -1) != 0);
+            break;
+        case LUA_TNUMBER:
+        default:
+            result.emplace(lua_tonumber(*ref_, -1) > 0);
+            break;
+    }
+    return result;
+}
+
 std::optional<double> LuaTree::tryGetDouble(std::string_view name) const
 {
     std::optional<double> result;
-    internal::LuaStackGuard _{*ref_};
-    ref_->push();
+    internal::LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TNIL:
+        case LUA_TUSERDATA:
+        case LUA_TTABLE:
+        case LUA_TTHREAD:
             break;
         case LUA_TBOOLEAN:
             result.emplace(lua_toboolean(*ref_, -1));
@@ -227,10 +283,12 @@ std::optional<double> LuaTree::tryGetDouble(std::string_view name) const
 std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
 {
     std::optional<std::string> result;
-    internal::LuaStackGuard _{*ref_};
-    ref_->push();
+    internal::LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TNIL:
+        case LUA_TUSERDATA:
+        case LUA_TTABLE:
+        case LUA_TTHREAD:
             break;
         case LUA_TBOOLEAN:
             result.emplace(1, '0' + lua_toboolean(*ref_, -1));
@@ -245,11 +303,10 @@ std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
     return result;
 }
 
-const std::optional<LuaTree> LuaTree::tryGetChild(std::string_view name) const
+std::optional<LuaTree> LuaTree::tryGetChild(std::string_view name) const
 {
     std::optional<LuaTree> result;
-    internal::LuaStackGuard _{*ref_};
-    ref_->push();
+    internal::LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TTABLE:
             result.emplace(LuaTree{std::make_shared<internal::LuaReference>(ref_->getState())});
@@ -258,7 +315,7 @@ const std::optional<LuaTree> LuaTree::tryGetChild(std::string_view name) const
     return result;
 }
 
-const LuaTree LuaTree::getChild(std::string_view name) const
+LuaTree LuaTree::getChild(std::string_view name) const
 {
     auto result = tryGetChild(name);
     if (!result.has_value())
