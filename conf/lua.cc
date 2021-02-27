@@ -154,10 +154,17 @@ void LuaState::runCode(std::string_view code)
     run();
 }
 
-LuaReference::LuaReference(std::shared_ptr<LuaState> state, int ref) noexcept
-    : state_{std::move(state)}
-    , ref_{ref}
+LuaReference::LuaReference()
+    : state_{std::make_shared<LuaState>()}
+    , ref_{LUA_NOREF}
 {
+}
+
+LuaReference::LuaReference(LuaReference&& other) noexcept
+    : state_{std::move(other.state_)}
+    , ref_{other.ref_}
+{
+    other.ref_ = LUA_NOREF;
 }
 
 LuaReference::LuaReference(std::shared_ptr<LuaState> state) noexcept
@@ -166,7 +173,9 @@ LuaReference::LuaReference(std::shared_ptr<LuaState> state) noexcept
 {
 }
 
-LuaReference::~LuaReference()
+LuaReference::~LuaReference() { reset(); }
+
+void LuaReference::reset() noexcept
 {
     if (state_ && ref_ != LUA_NOREF) {
         luaL_unref(*state_, LUA_REGISTRYINDEX, ref_);
@@ -174,25 +183,36 @@ LuaReference::~LuaReference()
     }
 }
 
+void LuaReference::set()
+{
+    reset();
+    ref_ = luaL_ref(*state_, LUA_REGISTRYINDEX);
+}
+
 void LuaReference::push() const { lua_rawgeti(*state_, LUA_REGISTRYINDEX, ref_); }
 
-LuaStackGuard::LuaStackGuard(const std::shared_ptr<LuaReference>& ref) noexcept
-    : state_{*ref}
+LuaStackGuard::LuaStackGuard(const LuaReference& ref) noexcept
+    : state_{ref}
     , top_{lua_gettop(state_)}
 {
-    ref->push();
+    ref.push();
 }
 
 LuaStackGuard::~LuaStackGuard() noexcept { lua_settop(state_, top_); }
 
 } // namespace internal
 
-LuaTree::LuaTree(std::shared_ptr<internal::LuaReference> ref) noexcept
+LuaTree::LuaTree(SharedConstructTag, internal::LuaReference&& ref) noexcept
     : ref_{std::move(ref)}
 {
 }
 
-LuaTree::~LuaTree() { }
+LuaTree::LuaTree(SharedConstructTag, std::shared_ptr<internal::LuaState> ref) noexcept
+    : ref_{std::move(ref)}
+{
+}
+
+LuaTree::~LuaTree() = default;
 
 void LuaTree::raiseKeyNotFound(std::string_view name)
 {
@@ -203,11 +223,11 @@ void LuaTree::raiseKeyNotFound(std::string_view name)
 
 int LuaTree::loadField(std::string_view name) const noexcept
 {
-    auto type = lua_getfield(*ref_, -1, name.data());
+    auto type = lua_getfield(ref_, -1, name.data());
     while (type == LUA_TFUNCTION) {
-        if (lua_pcall(*ref_, 0, 1, 0) != LUA_OK)
-            internal::LuaException::raise(*ref_);
-        type = lua_type(*ref_, -1);
+        if (lua_pcall(ref_, 0, 1, 0) != LUA_OK)
+            internal::LuaException::raise(ref_);
+        type = lua_type(ref_, -1);
     }
     return type;
 }
@@ -224,7 +244,7 @@ std::optional<bool> LuaTree::tryGetBoolean(std::string_view name) const
             break;
         case LUA_TSTRING: {
             size_t size{};
-            if (auto data = lua_tolstring(*ref_, -1, &size)) {
+            if (auto data = lua_tolstring(ref_, -1, &size)) {
                 std::string_view value{data, size};
                 if (strCaseAnyOf(value, "y", "yes", "true", "1")) {
                     result.emplace(true);
@@ -242,11 +262,11 @@ std::optional<bool> LuaTree::tryGetBoolean(std::string_view name) const
             break;
         }
         case LUA_TBOOLEAN:
-            result.emplace(lua_toboolean(*ref_, -1) != 0);
+            result.emplace(lua_toboolean(ref_, -1) != 0);
             break;
         case LUA_TNUMBER:
         default:
-            result.emplace(lua_tonumber(*ref_, -1) > 0);
+            result.emplace(lua_tonumber(ref_, -1) > 0);
             break;
     }
     return result;
@@ -263,10 +283,10 @@ std::optional<double> LuaTree::tryGetDouble(std::string_view name) const
         case LUA_TTHREAD:
             break;
         case LUA_TBOOLEAN:
-            result.emplace(lua_toboolean(*ref_, -1));
+            result.emplace(lua_toboolean(ref_, -1));
             break;
         case LUA_TSTRING: // TODO: Describe error properly if cannot convert...
-            if (auto data = lua_tolstring(*ref_, -1, nullptr)) {
+            if (auto data = lua_tolstring(ref_, -1, nullptr)) {
                 char* eptr{};
                 auto value = std::strtod(data, &eptr);
                 if (eptr != nullptr && *eptr == '\0' && errno == 0)
@@ -274,7 +294,7 @@ std::optional<double> LuaTree::tryGetDouble(std::string_view name) const
             }
             break;
         default:
-            result.emplace(lua_tonumber(*ref_, -1));
+            result.emplace(lua_tonumber(ref_, -1));
             break;
     }
     return result;
@@ -291,11 +311,11 @@ std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
         case LUA_TTHREAD:
             break;
         case LUA_TBOOLEAN:
-            result.emplace(1, '0' + lua_toboolean(*ref_, -1));
+            result.emplace(1, '0' + lua_toboolean(ref_, -1));
             break;
         default: {
             size_t size{};
-            if (auto data = lua_tolstring(*ref_, -1, &size))
+            if (auto data = lua_tolstring(ref_, -1, &size))
                 result.emplace(data, size);
             break;
         }
@@ -303,35 +323,34 @@ std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
     return result;
 }
 
-std::optional<LuaTree> LuaTree::tryGetChild(std::string_view name) const
+std::shared_ptr<LuaTree> LuaTree::tryGetChild(std::string_view name) const
 {
-    std::optional<LuaTree> result;
+    std::shared_ptr<LuaTree> result;
     internal::LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TTABLE:
-            result.emplace(LuaTree{std::make_shared<internal::LuaReference>(ref_->getState())});
+            result = std::make_shared<LuaTree>(SharedConstructTag{}, ref_.getState());
             break;
     }
     return result;
 }
 
-LuaTree LuaTree::getChild(std::string_view name) const
+std::shared_ptr<LuaTree> LuaTree::getChild(std::string_view name) const
 {
-    auto result = tryGetChild(name);
-    if (!result.has_value())
-        raiseKeyNotFound(name);
-    return result.value();
+    if (auto result = tryGetChild(name))
+        return result;
+    raiseKeyNotFound(name);
 }
 
-LuaTree LuaTree::loadFile(const std::filesystem::path& file)
+std::shared_ptr<LuaTree> LuaTree::loadFile(const std::filesystem::path& file)
 {
-    auto state = std::make_shared<internal::LuaState>();
-    lua_newtable(*state);
-    lua_pushvalue(*state, -1);
-    lua_setglobal(*state, "Confetti");
-    auto ref = luaL_ref(*state, LUA_REGISTRYINDEX);
-    state->runFile(file);
-    return LuaTree{std::make_shared<internal::LuaReference>(std::move(state), ref)};
+    internal::LuaReference ref;
+    lua_newtable(ref);
+    lua_pushvalue(ref, -1);
+    lua_setglobal(ref, "Confetti");
+    ref.set();
+    ref->runFile(file);
+    return std::make_shared<LuaTree>(SharedConstructTag{}, std::move(ref));
 }
 
 } // namespace conf

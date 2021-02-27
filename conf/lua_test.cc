@@ -99,59 +99,59 @@ TEST(LuaState, RunCode)
 TEST(LuaTree, Boolean)
 {
     auto tree = loadTree();
-    EXPECT_TRUE(tree.get<bool>("simple_yes"));
-    EXPECT_FALSE(tree.get<bool>("simple_no"));
-    EXPECT_TRUE(tree.get<bool>("simple_number"));
-    EXPECT_TRUE(tree.getBoolean("simple_double_number"));
-    EXPECT_FALSE(tree.getBoolean("simple_zero"));
-    EXPECT_FALSE(tree.get<bool>("simple_string"));
+    EXPECT_TRUE(tree->get<bool>("simple_yes"));
+    EXPECT_FALSE(tree->get<bool>("simple_no"));
+    EXPECT_TRUE(tree->get<bool>("simple_number"));
+    EXPECT_TRUE(tree->getBoolean("simple_double_number"));
+    EXPECT_FALSE(tree->getBoolean("simple_zero"));
+    EXPECT_FALSE(tree->get<bool>("simple_string"));
 }
 
 TEST(LuaTree, Double)
 {
     auto tree = loadTree();
-    EXPECT_DOUBLE_EQ(0.0, tree.get<double>("simple_no"));
-    EXPECT_DOUBLE_EQ(1.0, tree.get<double>("simple_yes"));
-    EXPECT_FALSE(tree.tryGet<double>("this_key_should_not_exist"));
-    EXPECT_TRUE(tree.tryGet<double>("simple_number"));
-    EXPECT_FALSE(tree.tryGetDouble("this_key_should_not_exist"));
-    EXPECT_TRUE(tree.tryGetDouble("simple_number"));
-    EXPECT_DOUBLE_EQ(12345, tree.get<double>("simple_number"));
-    EXPECT_DOUBLE_EQ(19.86, tree.get<double>("simple_double_number"));
-    EXPECT_DOUBLE_EQ(19.86, tree.getDouble("simple_double_number"));
-    EXPECT_DOUBLE_EQ(6.25, tree.get<double>("simple_nested_math"));
-    EXPECT_ANY_THROW(EXPECT_DOUBLE_EQ(0, tree.get<double>("simple_string")));
+    EXPECT_DOUBLE_EQ(0.0, tree->get<double>("simple_no"));
+    EXPECT_DOUBLE_EQ(1.0, tree->get<double>("simple_yes"));
+    EXPECT_FALSE(tree->tryGet<double>("this_key_should_not_exist"));
+    EXPECT_TRUE(tree->tryGet<double>("simple_number"));
+    EXPECT_FALSE(tree->tryGetDouble("this_key_should_not_exist"));
+    EXPECT_TRUE(tree->tryGetDouble("simple_number"));
+    EXPECT_DOUBLE_EQ(12345, tree->get<double>("simple_number"));
+    EXPECT_DOUBLE_EQ(19.86, tree->get<double>("simple_double_number"));
+    EXPECT_DOUBLE_EQ(19.86, tree->getDouble("simple_double_number"));
+    EXPECT_DOUBLE_EQ(6.25, tree->get<double>("simple_nested_math"));
+    EXPECT_ANY_THROW(EXPECT_DOUBLE_EQ(0, tree->get<double>("simple_string")));
 }
 
 TEST(LuaTree, String)
 {
     auto tree = loadTree();
 
-    EXPECT_FALSE(tree.tryGetString("this_key_should_not_exist").has_value());
-    EXPECT_TRUE(tree.tryGetString("simple_string").has_value());
+    EXPECT_FALSE(tree->tryGetString("this_key_should_not_exist").has_value());
+    EXPECT_TRUE(tree->tryGetString("simple_string").has_value());
 
-    EXPECT_FALSE(tree.tryGet<std::string>("this_key_should_not_exist").has_value());
-    EXPECT_TRUE(tree.tryGet<std::string>("simple_string").has_value());
+    EXPECT_FALSE(tree->tryGet<std::string>("this_key_should_not_exist").has_value());
+    EXPECT_TRUE(tree->tryGet<std::string>("simple_string").has_value());
 
-    EXPECT_EQ("Hello, Lua!", tree.get<std::string>("simple_string"));
+    EXPECT_EQ("Hello, Lua!", tree->get<std::string>("simple_string"));
 
-    EXPECT_EQ("12345", tree.get<std::string>("simple_number"));
-    EXPECT_EQ("12345", tree.get<std::string>("simple_number"));
+    EXPECT_EQ("12345", tree->get<std::string>("simple_number"));
+    EXPECT_EQ("12345", tree->get<std::string>("simple_number"));
 
-    EXPECT_EQ("1", tree.getString("simple_yes"));
-    EXPECT_EQ("0", tree.getString("simple_no"));
-    EXPECT_EQ("4", tree.getString("simple_func"));
-    EXPECT_EQ("6", tree.getString("simple_nested_func"));
+    EXPECT_EQ("1", tree->getString("simple_yes"));
+    EXPECT_EQ("0", tree->getString("simple_no"));
+    EXPECT_EQ("4", tree->getString("simple_func"));
+    EXPECT_EQ("6", tree->getString("simple_nested_func"));
 
-    EXPECT_ANY_THROW(ASSERT_FALSE(tree.get<std::string>("this_key_should_not_exist").empty()));
+    EXPECT_ANY_THROW(ASSERT_FALSE(tree->get<std::string>("this_key_should_not_exist").empty()));
 }
 
 TEST(LuaTree, Child)
 {
     auto tree = loadTree();
-    EXPECT_FALSE(tree.tryGetChild("this_key_should_not_exist").has_value());
-    EXPECT_TRUE(tree.tryGetChild("user").has_value());
-    auto userTree = tree["user"];
-    EXPECT_EQ("Vlad Lazarenko", userTree.getString("name"));
-    EXPECT_EQ("vlad@lazarenko.me", tree["user"].getString("email"));
+    EXPECT_EQ(nullptr, tree->tryGetChild("this_key_should_not_exist").get());
+    EXPECT_NE(nullptr, tree->tryGetChild("user").get());
+    auto userTree = tree->getChild("user");
+    EXPECT_EQ("Vlad Lazarenko", userTree->getString("name"));
+    EXPECT_EQ("vlad@lazarenko.me", tree->getChild("user")->getString("email"));
 }

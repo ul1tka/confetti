@@ -84,20 +84,28 @@ private:
 
 class LuaReference final {
 public:
+    LuaReference();
+
     explicit LuaReference(std::shared_ptr<LuaState> state) noexcept;
 
-    explicit LuaReference(std::shared_ptr<LuaState> state, int ref) noexcept;
+    LuaReference(LuaReference&& other) noexcept;
 
     ~LuaReference();
 
     LuaReference(const LuaReference&) = delete;
     LuaReference& operator=(const LuaReference&) = delete;
 
+    void reset() noexcept;
+
+    void set();
+
     void push() const;
+
+    LuaState* operator->() const noexcept { return state_.get(); }
 
     operator lua_State*() const noexcept { return *state_; }
 
-    std::shared_ptr<LuaState> getState() { return state_; }
+    std::shared_ptr<LuaState> getState() const noexcept { return state_; }
 
 private:
     std::shared_ptr<LuaState> state_;
@@ -106,7 +114,7 @@ private:
 
 class LuaStackGuard {
 public:
-    explicit LuaStackGuard(const std::shared_ptr<LuaReference>& ref) noexcept;
+    explicit LuaStackGuard(const LuaReference& ref) noexcept;
 
     ~LuaStackGuard() noexcept;
 
@@ -122,21 +130,18 @@ private:
 
 class LuaTree {
 public:
-    static LuaTree loadFile(const std::filesystem::path& file);
-
-    LuaTree(LuaTree&&) = default;
-    LuaTree(const LuaTree&) = default;
+    static std::shared_ptr<LuaTree> loadFile(const std::filesystem::path& file);
 
     ~LuaTree();
 
-    LuaTree& operator=(const LuaTree&) = default;
-    LuaTree& operator=(LuaTree&&) = default;
+    LuaTree(const LuaTree&) = delete;
+    LuaTree& operator=(const LuaTree&) = delete;
 
-    [[nodiscard]] std::optional<LuaTree> tryGetChild(std::string_view name) const;
+    [[nodiscard]] std::shared_ptr<LuaTree> tryGetChild(std::string_view name) const;
 
-    [[nodiscard]] LuaTree getChild(std::string_view name) const;
+    [[nodiscard]] std::shared_ptr<LuaTree> getChild(std::string_view name) const;
 
-    [[nodiscard]] LuaTree operator[](std::string_view name) const { return getChild(name); }
+    [[nodiscard]] decltype(auto) operator[](std::string_view name) const { return getChild(name); }
 
     [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view name) const;
 
@@ -176,13 +181,19 @@ public:
     }
 
 private:
-    explicit LuaTree(std::shared_ptr<internal::LuaReference> ref) noexcept;
+    struct SharedConstructTag final {
+    };
 
     [[nodiscard]] int loadField(std::string_view name) const noexcept;
 
     [[noreturn]] static void raiseKeyNotFound(std::string_view name);
 
-    std::shared_ptr<internal::LuaReference> ref_;
+    internal::LuaReference ref_;
+
+public:
+    explicit LuaTree(SharedConstructTag, internal::LuaReference&& ref) noexcept;
+
+    explicit LuaTree(SharedConstructTag, std::shared_ptr<internal::LuaState> ref) noexcept;
 };
 
 } // namespace conf
