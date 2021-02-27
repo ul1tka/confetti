@@ -55,38 +55,41 @@ public:
         return ConfigTree{std::move(result)};
     }
 
-    [[nodiscard]] ConfigTree getChild(std::string_view name) const
+    [[nodiscard]] decltype(auto) getChild(std::string_view name) const
     {
-        auto child = tryGetChild(name);
+        decltype(auto) child = tryGetChild(name);
         if (!child)
             noSuchChild(name);
         return child;
     }
 
-    [[nodiscard]] ConfigTree operator[](std::string_view name) const { return getChild(name); }
+    [[nodiscard]] decltype(auto) operator[](std::string_view name) const { return getChild(name); }
 
-    [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view name) const
+    [[nodiscard]] decltype(auto) tryGetBoolean(std::string_view name) const
     {
-        std::optional<bool> result;
-        if (source_)
-            result = source_->tryGetBoolean(name);
-        return result;
+        return tryGet(&Source::tryGetBoolean, name);
     }
 
-    [[nodiscard]] std::optional<double> tryGetDouble(std::string_view name) const
+    [[nodiscard]] decltype(auto) getBoolean(std::string_view name) const { return get<bool>(name); }
+
+    [[nodiscard]] decltype(auto) tryGetDouble(std::string_view name) const
     {
-        std::optional<double> result;
-        if (source_)
-            result = source_->tryGetDouble(name);
-        return result;
+        return tryGet(&Source::tryGetDouble, name);
     }
 
-    [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const
+    [[nodiscard]] decltype(auto) getDouble(std::string_view name) const
     {
-        std::optional<std::string> result;
-        if (source_)
-            result = source_->tryGetString(name);
-        return result;
+        return get<double>(name);
+    }
+
+    [[nodiscard]] decltype(auto) tryGetString(std::string_view name) const
+    {
+        return tryGet(&Source::tryGetString, name);
+    }
+
+    [[nodiscard]] decltype(auto) getString(std::string_view name) const
+    {
+        return get<std::string>(name);
     }
 
     template <typename T>
@@ -112,16 +115,14 @@ public:
             noSuchKey(name);
         return *std::move(result);
     }
-    [[nodiscard]] bool getBoolean(std::string_view name) const { return get<bool>(name); }
-
-    [[nodiscard]] double getDouble(std::string_view name) const { return get<double>(name); }
-
-    [[nodiscard]] std::string getString(std::string_view name) const
-    {
-        return get<std::string>(name);
-    }
 
 private:
+    template <typename R>
+    [[nodiscard]] R tryGet(R (Source::*getter)(std::string_view) const, std::string_view name) const
+    {
+        return source_ ? (source_.get()->*getter)(name) : R{};
+    }
+
     [[noreturn]] static void noSuchChild(std::string_view name);
 
     [[noreturn]] static void noSuchKey(std::string_view name);
