@@ -123,6 +123,8 @@ public:
     LuaSource(const LuaSource&) = delete;
     LuaSource& operator=(const LuaSource&) = delete;
 
+    [[nodiscard]] bool hasValueAt(int index) const override;
+
     [[nodiscard]] ConfigSourcePointer tryGetChild(int index) const override;
 
     [[nodiscard]] ConfigSourcePointer tryGetChild(std::string_view name) const override;

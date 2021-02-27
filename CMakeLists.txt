@@ -203,7 +203,7 @@ target_link_libraries(test-confetti PRIVATE gtest gmock gtest_main confetti)
 
 target_compile_options(test-confetti PRIVATE -Wno-global-constructors)
 
-target_compile_definitions(test-confetti PRIVATE CONF_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\")
+target_compile_definitions(test-confetti PRIVATE CONFETTI_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\")
 
 include(GoogleTest)
 

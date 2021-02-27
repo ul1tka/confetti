@@ -19,6 +19,7 @@
 
 #include "config_source.hh"
 #include "internal/type_traits.hh"
+#include <cassert>
 #include <compare>
 #include <filesystem>
 
@@ -29,6 +30,54 @@ class ConfigValue;
 
 class ConfigTree final {
 public:
+    struct EndIterator final {
+    };
+
+    template <typename T>
+    class Iterator final {
+    public:
+        explicit Iterator(const ConfigTree& tree) noexcept
+            : tree_{&tree}
+            , index_{0}
+        {
+        }
+
+        bool operator!=(EndIterator) const noexcept
+        {
+            assert(tree_);
+            assert(tree_->source_);
+            return tree_->source_->hasValueAt(index_);
+        }
+
+        Iterator& operator++()
+        {
+            ++index_;
+            return *this;
+        }
+
+        decltype(auto) operator*() const { return tree_->get<T>(index_); }
+
+    private:
+        const ConfigTree* tree_;
+        int index_;
+    };
+
+    template <typename T>
+    class Range {
+    public:
+        explicit Range(Iterator<T> it) noexcept
+            : it_{it}
+        {
+        }
+
+        Iterator<T> begin() const noexcept { return it_; }
+
+        static constexpr auto end() noexcept { return EndIterator{}; }
+
+    private:
+        Iterator<T> it_;
+    };
+
     ConfigTree() noexcept = default;
 
     explicit ConfigTree(ConfigSourcePointer source) noexcept
@@ -36,13 +85,13 @@ public:
     {
     }
 
-    ConfigTree(const ConfigTree&) = default;
-    ConfigTree(ConfigTree&&) = default;
+    ConfigTree(const ConfigTree&) noexcept = default;
+    ConfigTree(ConfigTree&&) noexcept = default;
 
     ~ConfigTree() = default;
 
-    ConfigTree& operator=(const ConfigTree&) = default;
-    ConfigTree& operator=(ConfigTree&&) = default;
+    ConfigTree& operator=(const ConfigTree&) noexcept = default;
+    ConfigTree& operator=(ConfigTree&&) noexcept = default;
 
     explicit operator bool() const noexcept { return source_.get() != nullptr; }
 
@@ -138,21 +187,35 @@ public:
     template <typename T, typename K>
     [[nodiscard]] std::optional<T> tryGet(K key) const
     {
-        static_assert(internal::is_any_v<T, std::string, bool, double, int64_t, uint64_t>,
+        static_assert(internal::is_any_of_v<T, std::string, bool, double, int32_t, uint32_t,
+                          int64_t, uint64_t>,
             "Type not supported");
-        if (!source_)
-            return {};
-        if constexpr (std::is_same_v<T, std::string>) {
-            return source_->tryGetString(key);
-        } else if constexpr (std::is_same_v<T, bool>) {
-            return source_->tryGetBoolean(key);
-        } else if constexpr (std::is_same_v<T, double>) {
-            return source_->tryGetDouble(key);
-        } else if constexpr (std::is_same_v<T, int64_t>) {
-            return source_->tryGetNumber(key);
-        } else if constexpr (std::is_same_v<T, uint64_t>) {
-            return source_->tryGetUnsignedNumber(key);
+        if (source_) {
+            if constexpr (std::is_same_v<T, std::string>) {
+                return source_->tryGetString(key);
+            } else if constexpr (std::is_same_v<T, bool>) {
+                return source_->tryGetBoolean(key);
+            } else if constexpr (std::is_same_v<T, double>) {
+                return source_->tryGetDouble(key);
+            } else if constexpr (internal::is_any_of_v<T, int32_t, int64_t>) {
+                return source_->tryGetNumber(key);
+            } else if constexpr (internal::is_any_of_v<T, uint32_t, uint64_t>) {
+                return source_->tryGetUnsignedNumber(key);
+            }
         }
+
+        // GCC 10.2.0 gives false positive around optional below in optimizing build:
+        // ‘<anonymous>’ may be used uninitialized in this function [-Werror=maybe-uninitialized]
+        // So disable the warning as a workaround. See also:
+        // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80635
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+        return std::optional<T>{};
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic pop
+#endif
     }
 
     template <typename T, typename K>
@@ -162,6 +225,18 @@ public:
         if (!result.has_value())
             noSuchKey(key);
         return *std::move(result);
+    }
+
+    template <typename T>
+    [[nodiscard]] T at(int index) const
+    {
+        return get<T>(index);
+    }
+
+    template <typename T>
+    Range<T> values() const
+    {
+        return Range<T>{Iterator<T>{*this}};
     }
 
     [[nodiscard]] ConfigValue<int> get(int index) const;

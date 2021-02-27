@@ -34,6 +34,8 @@ public:
 
     ~Source() override = default;
 
+    [[nodiscard]] bool hasValueAt(int) const override { return false; }
+
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(int) const override { return {}; }
 
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override

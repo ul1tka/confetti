@@ -37,6 +37,8 @@ public:
     ConfigSource(const ConfigSource&) = delete;
     ConfigSource& operator=(const ConfigSource&) = delete;
 
+    [[nodiscard]] virtual bool hasValueAt(int index) const = 0;
+
     [[nodiscard]] virtual ConfigSourcePointer tryGetChild(int index) const = 0;
 
     [[nodiscard]] virtual ConfigSourcePointer tryGetChild(std::string_view name) const = 0;
