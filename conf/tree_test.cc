@@ -137,3 +137,22 @@ TEST(ConfigTree, FullSource)
     EXPECT_TRUE(cfg.template get<double>(""));
     EXPECT_EQ("Hello!", cfg.template get<std::string>(""));
 }
+
+TEST(ConfigTree, FutureValue)
+{
+    conf::ConfigTree cfg{std::make_shared<FullSource>()};
+    const auto value = cfg.get("");
+    {
+        double v = value;
+        EXPECT_DOUBLE_EQ(19.86, v);
+    }
+    {
+        std::string x = value;
+        EXPECT_EQ("Hello!", x);
+    }
+    conf::ConfigTree subTree = value;
+    EXPECT_DOUBLE_EQ(19.86, subTree.get(""));
+
+    std::optional<double> x = cfg.get("");
+    EXPECT_TRUE(x.has_value());
+}
