@@ -214,13 +214,6 @@ LuaTree::LuaTree(SharedConstructTag, std::shared_ptr<internal::LuaState> ref) no
 
 LuaTree::~LuaTree() = default;
 
-void LuaTree::raiseKeyNotFound(std::string_view name) const
-{
-    std::string msg = "Key not found: ";
-    msg.append(name);
-    throw std::runtime_error{std::move(msg)};
-}
-
 int LuaTree::loadField(std::string_view name) const noexcept
 {
     auto type = lua_getfield(ref_, -1, name.data());
