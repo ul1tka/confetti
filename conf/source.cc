@@ -14,19 +14,29 @@
 // limitations under the License.
 //
 
-#include "tree.hh"
-#include <stdexcept>
+#include "source.hh"
+#include <cmath>
 
 namespace conf {
 
-void ConfigTree::noSuchChild(std::string_view name)
+Source::~Source() = default;
+
+std::optional<int64_t> Source::tryGetNumber(std::string_view name) const
 {
-    throw std::runtime_error{std::string{"Cannot find child config section "}.append(name)};
+    std::optional<int64_t> result;
+    if (auto number = tryGetDouble(name)) {
+        result.emplace(std::llround(*number));
+    }
+    return result;
 }
 
-void ConfigTree::noSuchKey(std::string_view name)
+std::optional<uint64_t> Source::tryGetUnsignedNumber(std::string_view name) const
 {
-    throw std::runtime_error{std::string{"Cannot find config value for key "}.append(name)};
+    std::optional<uint64_t> result;
+    if (auto number = tryGetDouble(name)) {
+        result.emplace(static_cast<uint64_t>(std::llround(*number)));
+    }
+    return result;
 }
 
 } // namespace conf
