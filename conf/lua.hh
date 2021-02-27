@@ -17,12 +17,11 @@
 #ifndef CONF_LUA_HH
 #define CONF_LUA_HH
 
+#include "source.hh"
 #include <cstddef>
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <stdexcept>
-#include <type_traits>
 
 extern "C" {
 struct lua_State;
@@ -30,9 +29,6 @@ struct lua_State;
 
 namespace conf {
 namespace internal {
-
-template <typename T, typename... O>
-constexpr static auto is_any_v = (std::is_same_v<T, O> || ...);
 
 class LuaException final : public std::runtime_error {
 public:
@@ -128,57 +124,22 @@ private:
 
 } // namespace internal
 
-class LuaTree {
+class LuaTree final : public Source {
 public:
-    static std::shared_ptr<LuaTree> loadFile(const std::filesystem::path& file);
+    static SourcePtr loadFile(const std::filesystem::path& file);
 
-    ~LuaTree();
+    ~LuaTree() override;
 
     LuaTree(const LuaTree&) = delete;
     LuaTree& operator=(const LuaTree&) = delete;
 
-    [[nodiscard]] std::shared_ptr<LuaTree> tryGetChild(std::string_view name) const;
+    [[nodiscard]] SourcePtr tryGetChild(std::string_view name) const override;
 
-    [[nodiscard]] std::shared_ptr<LuaTree> getChild(std::string_view name) const;
+    [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view name) const override;
 
-    [[nodiscard]] decltype(auto) operator[](std::string_view name) const { return getChild(name); }
+    [[nodiscard]] std::optional<double> tryGetDouble(std::string_view name) const override;
 
-    [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view name) const;
-
-    [[nodiscard]] bool getBoolean(std::string_view name) const { return get<bool>(name); }
-
-    [[nodiscard]] std::optional<double> tryGetDouble(std::string_view name) const;
-
-    [[nodiscard]] double getDouble(std::string_view name) const { return get<double>(name); }
-
-    [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const;
-
-    [[nodiscard]] std::string getString(std::string_view name) const
-    {
-        return get<std::string>(name);
-    }
-
-    template <typename T>
-    [[nodiscard]] std::optional<T> tryGet(std::string_view name) const
-    {
-        static_assert(internal::is_any_v<T, std::string, double, bool>, "Type not supported");
-        if constexpr (std::is_same_v<T, std::string>) {
-            return tryGetString(name);
-        } else if constexpr (std::is_same_v<T, double>) {
-            return tryGetDouble(name);
-        } else if constexpr (std::is_same_v<T, bool>) {
-            return tryGetBoolean(name);
-        }
-    }
-
-    template <typename T>
-    [[nodiscard]] T get(std::string_view name) const
-    {
-        auto result = tryGet<T>(name);
-        if (!result.has_value())
-            raiseKeyNotFound(name);
-        return std::move(result).value();
-    }
+    [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const override;
 
 private:
     struct SharedConstructTag final {
@@ -186,7 +147,7 @@ private:
 
     [[nodiscard]] int loadField(std::string_view name) const noexcept;
 
-    [[noreturn]] static void raiseKeyNotFound(std::string_view name);
+    [[noreturn]] void raiseKeyNotFound(std::string_view name) const;
 
     internal::LuaReference ref_;
 
