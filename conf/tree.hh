@@ -23,6 +23,8 @@
 
 namespace conf {
 
+class FutureValue;
+
 class ConfigTree final {
 public:
     ConfigTree() noexcept = default;
@@ -141,6 +143,8 @@ public:
         return *std::move(result);
     }
 
+    FutureValue get(std::string name) const;
+
 private:
     template <typename R>
     [[nodiscard]] R tryGet(R (Source::*getter)(std::string_view) const, std::string_view name) const
@@ -154,6 +158,46 @@ private:
 
     SourcePtr source_;
 };
+
+class FutureValue final {
+public:
+    explicit FutureValue(ConfigTree tree, std::string name)
+        : tree_{tree}
+        , name_{std::move(name)}
+    {
+    }
+
+    template <typename T>
+    operator T() const // NOLINT(google-explicit-constructor)
+    {
+        static_assert(!std::is_pointer_v<T>, "Cannot convert values to pointers");
+
+        if constexpr (std::is_same_v<T, ConfigTree>)
+            return tree_.getChild(name_);
+        else
+            return tree_.get<T>(name_);
+    }
+
+    template <typename T>
+    operator std::optional<T>() const // NOLINT(google-explicit-constructor)
+    {
+        static_assert(!std::is_pointer_v<T>, "Cannot convert values to optional pointers");
+
+        if constexpr (std::is_same_v<T, ConfigTree>)
+            return tree_.tryGetChild(name_);
+        else
+            return tree_.tryGet<T>(name_);
+    }
+
+private:
+    ConfigTree tree_;
+    std::string name_;
+};
+
+inline FutureValue ConfigTree::get(std::string name) const
+{
+    return FutureValue{*this, std::move(name)};
+}
 
 } // namespace conf
 

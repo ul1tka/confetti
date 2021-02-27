@@ -119,6 +119,8 @@ TEST(LuaTree, Double)
     EXPECT_TRUE(tree.tryGetDouble("simple_number"));
     EXPECT_DOUBLE_EQ(12345, tree.get<double>("simple_number"));
     EXPECT_DOUBLE_EQ(19.86, tree.get<double>("simple_double_number"));
+    EXPECT_DOUBLE_EQ(12345.0, tree.get("simple_number"));
+    EXPECT_DOUBLE_EQ(19.86, tree.get("simple_double_number"));
     EXPECT_DOUBLE_EQ(19.86, tree.getDouble("simple_double_number"));
     EXPECT_DOUBLE_EQ(-19.86, tree.get<double>("simple_double_string"));
     EXPECT_DOUBLE_EQ(6.25, tree.get<double>("simple_nested_math"));
