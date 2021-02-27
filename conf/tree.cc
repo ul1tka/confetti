@@ -21,6 +21,15 @@ namespace conf {
 
 Source::~Source() = default;
 
+std::optional<int64_t> Source::tryGetNumber(std::string_view name) const
+{
+    std::optional<int64_t> result;
+    if (auto number = tryGetDouble(name)) {
+        result.emplace(static_cast<int64_t>(number.value()));
+    }
+    return result;
+}
+
 void ConfigTree::noSuchChild(std::string_view name)
 {
     throw std::runtime_error{std::string{"Cannot find child config section "}.append(name)};

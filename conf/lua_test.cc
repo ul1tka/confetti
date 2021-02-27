@@ -124,6 +124,16 @@ TEST(LuaTree, Double)
     EXPECT_ANY_THROW(EXPECT_DOUBLE_EQ(0, tree.get<double>("simple_string")));
 }
 
+TEST(LuaTree, Number)
+{
+    auto tree = loadTree();
+    EXPECT_EQ(12345, tree.getNumber("simple_number"));
+    EXPECT_EQ(12345, tree.get<int64_t>("simple_number"));
+    EXPECT_EQ(12345, tree.tryGetNumber("simple_number").value_or(0));
+    EXPECT_FALSE(tree.tryGetNumber("this_key_should_not_exist"));
+    EXPECT_ANY_THROW((void)tree.get<int64_t>("this_key_should_not_exist"));
+}
+
 TEST(LuaTree, String)
 {
     auto tree = loadTree();

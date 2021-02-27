@@ -17,6 +17,7 @@
 #ifndef CONF_INTERFACE_HH
 #define CONF_INTERFACE_HH
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -37,6 +38,8 @@ public:
     [[nodiscard]] virtual std::optional<bool> tryGetBoolean(std::string_view name) const = 0;
 
     [[nodiscard]] virtual std::optional<double> tryGetDouble(std::string_view name) const = 0;
+
+    [[nodiscard]] virtual std::optional<int64_t> tryGetNumber(std::string_view name) const;
 
     [[nodiscard]] virtual std::optional<std::string> tryGetString(std::string_view name) const = 0;
 };
