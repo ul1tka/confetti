@@ -25,9 +25,9 @@ extern "C" {
 #include <memory>
 #include <type_traits>
 
-static conf::Tree loadTree()
+static conf::ConfigTree loadTree()
 {
-    return conf::Tree{
+    return conf::ConfigTree{
         conf::LuaTree::loadFile(std::filesystem::path{CONF_SOURCE_DIR} / "conf" / "lua_test.lua")};
 }
 

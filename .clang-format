@@ -11,5 +11,4 @@ SpaceBeforeCpp11BracedList: false
 Cpp11BracedListStyle: true
 IndentCaseLabels: true
 FixNamespaceComments: true
-BreakInheritanceList: BeforeComma
 ...

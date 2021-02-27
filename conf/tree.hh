@@ -17,46 +17,45 @@
 #ifndef CONF_TREE_HH
 #define CONF_TREE_HH
 
+#include "internal/type_traits.hh"
 #include "source.hh"
-#include <type_traits>
+#include <compare>
 
 namespace conf {
 
-namespace internal {
-
-template <typename T, typename... O>
-constexpr static auto is_any_v = (std::is_same_v<T, O> || ...);
-
-} // namespace internal
-
-class Tree final {
+class ConfigTree final {
 public:
-    Tree() noexcept = default;
+    ConfigTree() noexcept = default;
 
-    explicit Tree(SourcePtr source) noexcept
+    explicit ConfigTree(SourcePtr source) noexcept
         : source_{std::move(source)}
     {
     }
 
-    Tree(const Tree&) = default;
-    Tree(Tree&&) = default;
+    ConfigTree(const ConfigTree&) = default;
+    ConfigTree(ConfigTree&&) = default;
 
-    ~Tree() = default;
+    ~ConfigTree() = default;
 
-    Tree& operator=(const Tree&) = default;
-    Tree& operator=(Tree&&) = default;
+    ConfigTree& operator=(const ConfigTree&) = default;
+    ConfigTree& operator=(ConfigTree&&) = default;
 
     explicit operator bool() const noexcept { return source_.get() != nullptr; }
 
-    [[nodiscard]] Tree tryGetChild(std::string_view name) const
+    auto operator<=>(const ConfigTree& other) const noexcept
+    {
+        return source_.get() <=> other.source_.get();
+    }
+
+    [[nodiscard]] ConfigTree tryGetChild(std::string_view name) const
     {
         SourcePtr result;
         if (source_)
             result = source_->tryGetChild(name);
-        return Tree{std::move(result)};
+        return ConfigTree{std::move(result)};
     }
 
-    [[nodiscard]] Tree getChild(std::string_view name) const
+    [[nodiscard]] ConfigTree getChild(std::string_view name) const
     {
         auto child = tryGetChild(name);
         if (!child)
@@ -64,7 +63,7 @@ public:
         return child;
     }
 
-    [[nodiscard]] Tree operator[](std::string_view name) const { return getChild(name); }
+    [[nodiscard]] ConfigTree operator[](std::string_view name) const { return getChild(name); }
 
     [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view name) const
     {
@@ -113,7 +112,6 @@ public:
             noSuchKey(name);
         return *std::move(result);
     }
-
     [[nodiscard]] bool getBoolean(std::string_view name) const { return get<bool>(name); }
 
     [[nodiscard]] double getDouble(std::string_view name) const { return get<double>(name); }
