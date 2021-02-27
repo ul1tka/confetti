@@ -32,7 +32,6 @@ if (CMAKE_BUILD_TYPE MATCHES "Coverage")
 endif ()
 
 include(FetchContent)
-include(ExternalProject)
 
 #
 # Lua (https://github.com/lua/lua)
@@ -159,6 +158,7 @@ configure_file(
 add_library(
         confetti
         conf/version.cc
+        conf/tree.cc
         conf/lua.cc
 )
 

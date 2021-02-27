@@ -214,7 +214,7 @@ LuaTree::LuaTree(SharedConstructTag, std::shared_ptr<internal::LuaState> ref) no
 
 LuaTree::~LuaTree() = default;
 
-void LuaTree::raiseKeyNotFound(std::string_view name)
+void LuaTree::raiseKeyNotFound(std::string_view name) const
 {
     std::string msg = "Key not found: ";
     msg.append(name);
@@ -323,9 +323,9 @@ std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
     return result;
 }
 
-std::shared_ptr<LuaTree> LuaTree::tryGetChild(std::string_view name) const
+std::shared_ptr<Source> LuaTree::tryGetChild(std::string_view name) const
 {
-    std::shared_ptr<LuaTree> result;
+    std::shared_ptr<Source> result;
     internal::LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TTABLE:
@@ -335,14 +335,7 @@ std::shared_ptr<LuaTree> LuaTree::tryGetChild(std::string_view name) const
     return result;
 }
 
-std::shared_ptr<LuaTree> LuaTree::getChild(std::string_view name) const
-{
-    if (auto result = tryGetChild(name))
-        return result;
-    raiseKeyNotFound(name);
-}
-
-std::shared_ptr<LuaTree> LuaTree::loadFile(const std::filesystem::path& file)
+SourcePtr LuaTree::loadFile(const std::filesystem::path& file)
 {
     internal::LuaReference ref;
     lua_newtable(ref);
