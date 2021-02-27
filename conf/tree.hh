@@ -82,6 +82,16 @@ public:
         return get<int64_t>(name);
     }
 
+    [[nodiscard]] decltype(auto) tryGetUnsignedNumber(std::string_view name) const
+    {
+        return tryGet(&Source::tryGetUnsignedNumber, name);
+    }
+
+    [[nodiscard]] decltype(auto) getUnsignedNumber(std::string_view name) const
+    {
+        return get<uint64_t>(name);
+    }
+
     [[nodiscard]] decltype(auto) tryGetDouble(std::string_view name) const
     {
         return tryGet(&Source::tryGetDouble, name);
@@ -105,8 +115,8 @@ public:
     template <typename T>
     [[nodiscard]] std::optional<T> tryGet(std::string_view name) const
     {
-        static_assert(
-            internal::is_any_v<T, std::string, bool, double, int64_t>, "Type not supported");
+        static_assert(internal::is_any_v<T, std::string, bool, double, int64_t, uint64_t>,
+            "Type not supported");
         if (!source_)
             return {};
         if constexpr (std::is_same_v<T, std::string>) {
@@ -117,6 +127,8 @@ public:
             return source_->tryGetDouble(name);
         } else if constexpr (std::is_same_v<T, int64_t>) {
             return source_->tryGetNumber(name);
+        } else if constexpr (std::is_same_v<T, uint64_t>) {
+            return source_->tryGetUnsignedNumber(name);
         }
     }
 

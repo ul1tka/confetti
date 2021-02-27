@@ -158,6 +158,7 @@ configure_file(
 add_library(
         confetti
         conf/version.cc
+        conf/source.cc
         conf/tree.cc
         conf/lua.cc
 )

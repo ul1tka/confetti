@@ -41,6 +41,8 @@ public:
 
     [[nodiscard]] virtual std::optional<int64_t> tryGetNumber(std::string_view name) const;
 
+    [[nodiscard]] virtual std::optional<uint64_t> tryGetUnsignedNumber(std::string_view name) const;
+
     [[nodiscard]] virtual std::optional<std::string> tryGetString(std::string_view name) const = 0;
 };
 
