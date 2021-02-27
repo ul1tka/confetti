@@ -147,8 +147,6 @@ private:
 
     [[nodiscard]] int loadField(std::string_view name) const noexcept;
 
-    [[noreturn]] void raiseKeyNotFound(std::string_view name) const;
-
     internal::LuaReference ref_;
 
 public:
