@@ -160,7 +160,7 @@ add_library(
         conf/version.cc
         conf/source.cc
         conf/tree.cc
-        conf/lua.cc
+        conf/internal/lua.cc
 )
 
 target_link_libraries(confetti PUBLIC lua)
@@ -195,7 +195,7 @@ add_executable(
         test-confetti
         conf/version_test.cc
         conf/tree_test.cc
-        conf/lua_test.cc
+        conf/internal/lua_test.cc
 )
 
 target_link_libraries(test-confetti PRIVATE gtest gmock gtest_main confetti)

@@ -20,6 +20,7 @@
 #include "internal/type_traits.hh"
 #include "source.hh"
 #include <compare>
+#include <filesystem>
 
 namespace conf {
 
@@ -144,6 +145,8 @@ public:
     }
 
     FutureValue get(std::string name) const;
+
+    [[nodiscard]] static ConfigTree loadLuaFile(const std::filesystem::path& file);
 
 private:
     template <typename R>
