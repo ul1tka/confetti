@@ -37,17 +37,36 @@ public:
     ConfigSource(const ConfigSource&) = delete;
     ConfigSource& operator=(const ConfigSource&) = delete;
 
+    [[nodiscard]] virtual ConfigSourcePointer tryGetChild(int index) const = 0;
+
     [[nodiscard]] virtual ConfigSourcePointer tryGetChild(std::string_view name) const = 0;
+
+    [[nodiscard]] virtual std::optional<bool> tryGetBoolean(int index) const = 0;
 
     [[nodiscard]] virtual std::optional<bool> tryGetBoolean(std::string_view name) const = 0;
 
+    [[nodiscard]] virtual std::optional<double> tryGetDouble(int index) const = 0;
+
     [[nodiscard]] virtual std::optional<double> tryGetDouble(std::string_view name) const = 0;
+
+    [[nodiscard]] virtual std::optional<int64_t> tryGetNumber(int index) const;
 
     [[nodiscard]] virtual std::optional<int64_t> tryGetNumber(std::string_view name) const;
 
+    [[nodiscard]] virtual std::optional<uint64_t> tryGetUnsignedNumber(int index) const;
+
     [[nodiscard]] virtual std::optional<uint64_t> tryGetUnsignedNumber(std::string_view name) const;
 
+    [[nodiscard]] virtual std::optional<std::string> tryGetString(int index) const = 0;
+
     [[nodiscard]] virtual std::optional<std::string> tryGetString(std::string_view name) const = 0;
+
+private:
+    template <typename T>
+    [[nodiscard]] std::optional<int64_t> tryGetNumberT(T key) const;
+
+    template <typename T>
+    [[nodiscard]] std::optional<uint64_t> tryGetUnsignedNumberT(T key) const;
 };
 
 } // namespace confetti

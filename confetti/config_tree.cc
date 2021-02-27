@@ -20,9 +20,21 @@
 
 namespace confetti {
 
+void ConfigTree::noSuchChild(int index)
+{
+    throw std::runtime_error{
+        std::string{"Cannot find child config section at index "}.append(std::to_string(index))};
+}
+
 void ConfigTree::noSuchChild(std::string_view name)
 {
     throw std::runtime_error{std::string{"Cannot find child config section "}.append(name)};
+}
+
+void ConfigTree::noSuchKey(int index)
+{
+    throw std::runtime_error{
+        std::string{"Cannot find config value at index "}.append(std::to_string(index))};
 }
 
 void ConfigTree::noSuchKey(std::string_view name)

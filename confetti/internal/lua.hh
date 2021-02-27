@@ -123,11 +123,19 @@ public:
     LuaSource(const LuaSource&) = delete;
     LuaSource& operator=(const LuaSource&) = delete;
 
+    [[nodiscard]] ConfigSourcePointer tryGetChild(int index) const override;
+
     [[nodiscard]] ConfigSourcePointer tryGetChild(std::string_view name) const override;
+
+    [[nodiscard]] std::optional<bool> tryGetBoolean(int index) const override;
 
     [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view name) const override;
 
+    [[nodiscard]] std::optional<double> tryGetDouble(int index) const override;
+
     [[nodiscard]] std::optional<double> tryGetDouble(std::string_view name) const override;
+
+    [[nodiscard]] std::optional<std::string> tryGetString(int index) const override;
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const override;
 
@@ -135,7 +143,19 @@ private:
     struct SharedConstructTag final {
     };
 
-    [[nodiscard]] int loadField(std::string_view name) const noexcept;
+    [[nodiscard]] int invoke(int type) const;
+
+    [[nodiscard]] int getField(int index) const noexcept;
+
+    [[nodiscard]] int getField(std::string_view name) const noexcept;
+
+    [[nodiscard]] ConfigSourcePointer tryConvertToChild(int type) const;
+
+    [[nodiscard]] std::optional<bool> tryConvertToBoolean(int type) const;
+
+    [[nodiscard]] std::optional<double> tryConvertToDouble(int type) const;
+
+    [[nodiscard]] std::optional<std::string> tryConvertToString(int type) const;
 
     LuaReference ref_;
 

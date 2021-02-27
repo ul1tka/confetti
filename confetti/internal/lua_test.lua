@@ -25,12 +25,17 @@ cfg.simple_double_string = "-19.86"
 cfg.simple_zero = 0
 cfg.simple_yes = true
 cfg.simple_no = false
-cfg.simple_func = function() return 2 + 2 end
+
+cfg.simple_func = function()
+    return 2 + 2
+end
+
 cfg.simple_nested_func = function()
     return function()
         return 2 + 2 * 2
     end
 end
+
 cfg.simple_nested_math = function()
     return function()
         return 2.5 * 2.5
@@ -41,3 +46,5 @@ cfg["user"] = {
     name = "Vlad Lazarenko",
     email = "vlad@lazarenko.me"
 }
+
+cfg.days = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" }

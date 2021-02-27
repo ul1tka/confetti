@@ -170,6 +170,17 @@ TEST(LuaTree, String)
     EXPECT_EQ("6", source->tryGetString("simple_nested_func").value());
 }
 
+TEST(LuaTree, StringByIndex)
+{
+    static const char* values[]
+        = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+    auto days = loadTestFile()->tryGetChild("days");
+    ASSERT_TRUE(days);
+    for (int i = 0; i < static_cast<int>(std::size(values)); ++i) {
+        EXPECT_EQ(values[i], days->tryGetString(i).value());
+    }
+}
+
 TEST(LuaTree, Child)
 {
     auto source = loadTestFile();
