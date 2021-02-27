@@ -21,22 +21,41 @@ namespace confetti {
 
 ConfigSource::~ConfigSource() = default;
 
-std::optional<int64_t> ConfigSource::tryGetNumber(std::string_view name) const
+template <typename T>
+std::optional<int64_t> ConfigSource::tryGetNumberT(T key) const
 {
     std::optional<int64_t> result;
-    if (auto number = tryGetDouble(name)) {
+    if (auto number = tryGetDouble(key)) {
         result.emplace(std::llround(*number));
     }
     return result;
 }
 
-std::optional<uint64_t> ConfigSource::tryGetUnsignedNumber(std::string_view name) const
+std::optional<int64_t> ConfigSource::tryGetNumber(int index) const { return tryGetNumberT(index); }
+
+std::optional<int64_t> ConfigSource::tryGetNumber(std::string_view name) const
+{
+    return tryGetNumberT(name);
+}
+
+template <typename T>
+std::optional<uint64_t> ConfigSource::tryGetUnsignedNumberT(T key) const
 {
     std::optional<uint64_t> result;
-    if (auto number = tryGetDouble(name)) {
+    if (auto number = tryGetDouble(key)) {
         result.emplace(static_cast<uint64_t>(std::llround(*number)));
     }
     return result;
+}
+
+std::optional<uint64_t> ConfigSource::tryGetUnsignedNumber(int index) const
+{
+    return tryGetUnsignedNumberT(index);
+}
+
+std::optional<uint64_t> ConfigSource::tryGetUnsignedNumber(std::string_view name) const
+{
+    return tryGetUnsignedNumberT(name);
 }
 
 } // namespace confetti

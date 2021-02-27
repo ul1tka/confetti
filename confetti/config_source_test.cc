@@ -28,23 +28,31 @@ static_assert(!std::is_move_assignable_v<confetti::ConfigSource>);
 
 namespace {
 
-class Source : public confetti::ConfigSource {
+class Source final : public confetti::ConfigSource {
 public:
     using ConfigSource::ConfigSource;
 
     ~Source() override = default;
+
+    [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(int) const override { return {}; }
 
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override
     {
         return {};
     }
 
+    [[nodiscard]] std::optional<bool> tryGetBoolean(int) const override { return {}; }
+
     [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view) const override { return {}; }
+
+    [[nodiscard]] std::optional<double> tryGetDouble(int) const override { return {}; }
 
     [[nodiscard]] std::optional<double> tryGetDouble(std::string_view) const override
     {
         return 19.86;
     }
+
+    [[nodiscard]] std::optional<std::string> tryGetString(int) const override { return {}; }
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view) const override
     {

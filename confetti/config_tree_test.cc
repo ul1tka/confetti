@@ -22,14 +22,22 @@ namespace {
 struct EmptySource final : confetti::ConfigSource {
     ~EmptySource() override = default;
 
+    [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(int) const override { return {}; }
+
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override
     {
         return {};
     }
 
+    [[nodiscard]] std::optional<bool> tryGetBoolean(int) const override { return {}; }
+
     [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view) const override { return {}; }
 
+    [[nodiscard]] std::optional<double> tryGetDouble(int) const override { return {}; }
+
     [[nodiscard]] std::optional<double> tryGetDouble(std::string_view) const override { return {}; }
+
+    [[nodiscard]] std::optional<std::string> tryGetString(int) const override { return {}; }
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view) const override
     {
@@ -40,24 +48,35 @@ struct EmptySource final : confetti::ConfigSource {
 struct FullSource final : confetti::ConfigSource {
     ~FullSource() override = default;
 
-    [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override
+    [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(int) const override
     {
         return std::make_shared<FullSource>();
     }
 
+    [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override
+    {
+        return tryGetChild(0);
+    }
+
+    [[nodiscard]] std::optional<bool> tryGetBoolean(int) const override { return true; }
+
     [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view) const override
     {
-        return true;
+        return tryGetBoolean(0);
     }
+
+    [[nodiscard]] std::optional<double> tryGetDouble(int) const override { return 19.86; }
 
     [[nodiscard]] std::optional<double> tryGetDouble(std::string_view) const override
     {
-        return 19.86;
+        return tryGetDouble(0);
     }
+
+    [[nodiscard]] std::optional<std::string> tryGetString(int) const override { return "Hello!"; }
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view) const override
     {
-        return "Hello!";
+        return tryGetString(0);
     }
 };
 
@@ -125,20 +144,34 @@ TEST(ConfigTree, FullSource)
     confetti::ConfigTree cfg{std::make_shared<FullSource>()};
 
     EXPECT_TRUE(cfg.tryGetChild(""));
+    EXPECT_TRUE(cfg.tryGetChild(1));
     EXPECT_TRUE(cfg.tryGetBoolean("").value());
+    EXPECT_TRUE(cfg.tryGetBoolean(2).value());
     EXPECT_DOUBLE_EQ(19.86, cfg.tryGetDouble("").value());
+    EXPECT_DOUBLE_EQ(19.86, cfg.tryGetDouble(0).value());
     EXPECT_EQ("Hello!", cfg.tryGetString("").value());
+    EXPECT_EQ("Hello!", cfg.tryGetString(0).value());
     EXPECT_TRUE(cfg.template tryGet<bool>("").value());
+    EXPECT_TRUE(cfg.template tryGet<bool>(1).value());
     EXPECT_TRUE(cfg.template tryGet<double>("").value());
+    EXPECT_TRUE(cfg.template tryGet<double>(0).value());
     EXPECT_EQ("Hello!", cfg.template tryGet<std::string>("").value());
+    EXPECT_EQ("Hello!", cfg.template tryGet<std::string>(0).value());
 
     EXPECT_TRUE(cfg.getChild(""));
+    EXPECT_TRUE(cfg.getChild(0));
     EXPECT_TRUE(cfg.getBoolean(""));
+    EXPECT_TRUE(cfg.getBoolean(0));
     EXPECT_DOUBLE_EQ(19.86, cfg.getDouble(""));
+    EXPECT_DOUBLE_EQ(19.86, cfg.getDouble(0));
     EXPECT_EQ("Hello!", cfg.getString(""));
+    EXPECT_EQ("Hello!", cfg.getString(0));
     EXPECT_TRUE(cfg.template get<bool>(""));
+    EXPECT_TRUE(cfg.template get<bool>(0));
     EXPECT_TRUE(cfg.template get<double>(""));
+    EXPECT_TRUE(cfg.template get<double>(0));
     EXPECT_EQ("Hello!", cfg.template get<std::string>(""));
+    EXPECT_EQ("Hello!", cfg.template get<std::string>(0));
 }
 
 TEST(ConfigTree, ConfigValue)

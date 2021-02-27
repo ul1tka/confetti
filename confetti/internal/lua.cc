@@ -185,9 +185,8 @@ LuaSource::LuaSource(SharedConstructTag, std::shared_ptr<LuaState> ref) noexcept
 
 LuaSource::~LuaSource() = default;
 
-int LuaSource::loadField(std::string_view name) const noexcept
+int LuaSource::invoke(int type) const
 {
-    auto type = lua_getfield(ref_, -1, name.data());
     while (type == LUA_TFUNCTION) {
         if (lua_pcall(ref_, 0, 1, 0) != LUA_OK)
             LuaException::raise(ref_);
@@ -196,11 +195,17 @@ int LuaSource::loadField(std::string_view name) const noexcept
     return type;
 }
 
-std::optional<bool> LuaSource::tryGetBoolean(std::string_view name) const
+int LuaSource::getField(int index) const noexcept { return invoke(lua_geti(ref_, -1, index + 1)); }
+
+int LuaSource::getField(std::string_view name) const noexcept
+{
+    return invoke(lua_getfield(ref_, -1, name.data()));
+}
+
+std::optional<bool> LuaSource::tryConvertToBoolean(int type) const
 {
     std::optional<bool> result;
-    LuaStackGuard _{ref_};
-    switch (loadField(name)) {
+    switch (type) {
         case LUA_TNIL:
         case LUA_TUSERDATA:
         case LUA_TTABLE:
@@ -234,11 +239,22 @@ std::optional<bool> LuaSource::tryGetBoolean(std::string_view name) const
     return result;
 }
 
-std::optional<double> LuaSource::tryGetDouble(std::string_view name) const
+std::optional<bool> LuaSource::tryGetBoolean(int index) const
+{
+    LuaStackGuard _{ref_};
+    return tryConvertToBoolean(getField(index));
+}
+
+std::optional<bool> LuaSource::tryGetBoolean(std::string_view name) const
+{
+    LuaStackGuard _{ref_};
+    return tryConvertToBoolean(getField(name));
+}
+
+std::optional<double> LuaSource::tryConvertToDouble(int type) const
 {
     std::optional<double> result;
-    LuaStackGuard _{ref_};
-    switch (loadField(name)) {
+    switch (type) {
         case LUA_TNIL:
         case LUA_TUSERDATA:
         case LUA_TTABLE:
@@ -272,11 +288,22 @@ std::optional<double> LuaSource::tryGetDouble(std::string_view name) const
     return result;
 }
 
-std::optional<std::string> LuaSource::tryGetString(std::string_view name) const
+std::optional<double> LuaSource::tryGetDouble(int index) const
+{
+    LuaStackGuard _{ref_};
+    return tryConvertToDouble(getField(index));
+}
+
+std::optional<double> LuaSource::tryGetDouble(std::string_view name) const
+{
+    LuaStackGuard _{ref_};
+    return tryConvertToDouble(getField(name));
+}
+
+std::optional<std::string> LuaSource::tryConvertToString(int type) const
 {
     std::optional<std::string> result;
-    LuaStackGuard _{ref_};
-    switch (loadField(name)) {
+    switch (type) {
         case LUA_TNIL:
         case LUA_TUSERDATA:
         case LUA_TTABLE:
@@ -295,16 +322,39 @@ std::optional<std::string> LuaSource::tryGetString(std::string_view name) const
     return result;
 }
 
-std::shared_ptr<ConfigSource> LuaSource::tryGetChild(std::string_view name) const
+std::optional<std::string> LuaSource::tryGetString(int index) const
 {
-    std::shared_ptr<ConfigSource> result;
     LuaStackGuard _{ref_};
-    switch (loadField(name)) {
+    return tryConvertToString(getField(index));
+}
+
+std::optional<std::string> LuaSource::tryGetString(std::string_view name) const
+{
+    LuaStackGuard _{ref_};
+    return tryConvertToString(getField(name));
+}
+
+ConfigSourcePointer LuaSource::tryConvertToChild(int type) const
+{
+    ConfigSourcePointer result;
+    switch (type) {
         case LUA_TTABLE:
             result = std::make_shared<LuaSource>(SharedConstructTag{}, ref_.getState());
             break;
     }
     return result;
+}
+
+ConfigSourcePointer LuaSource::tryGetChild(int index) const
+{
+    LuaStackGuard _{ref_};
+    return tryConvertToChild(getField(index));
+}
+
+ConfigSourcePointer LuaSource::tryGetChild(std::string_view name) const
+{
+    LuaStackGuard _{ref_};
+    return tryConvertToChild(getField(name));
 }
 
 ConfigSourcePointer LuaSource::loadFile(const std::filesystem::path& file)
