@@ -14,21 +14,16 @@
 // limitations under the License.
 //
 
-#include "tree.hh"
-#include <stdexcept>
+#ifndef CONF_INTERNAL_TYPE_TRAITS_HH
+#define CONF_INTERNAL_TYPE_TRAITS_HH
 
-namespace conf {
+#include <type_traits>
 
-Source::~Source() = default;
+namespace conf::internal {
 
-void ConfigTree::noSuchChild(std::string_view name)
-{
-    throw std::runtime_error{std::string{"Cannot find child config section "}.append(name)};
-}
+template <typename T, typename... N>
+constexpr static auto is_any_v = (std::is_same_v<T, N> || ...);
 
-void ConfigTree::noSuchKey(std::string_view name)
-{
-    throw std::runtime_error{std::string{"Cannot find config value for key "}.append(name)};
-}
+} // namespace conf::internal
 
-} // namespace conf
+#endif
