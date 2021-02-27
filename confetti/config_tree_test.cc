@@ -22,6 +22,8 @@ namespace {
 struct EmptySource final : confetti::ConfigSource {
     ~EmptySource() override = default;
 
+    [[nodiscard]] bool hasValueAt(int) const override { return false; }
+
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(int) const override { return {}; }
 
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override
@@ -47,6 +49,8 @@ struct EmptySource final : confetti::ConfigSource {
 
 struct FullSource final : confetti::ConfigSource {
     ~FullSource() override = default;
+
+    [[nodiscard]] bool hasValueAt(int) const override { return true; }
 
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(int) const override
     {
@@ -191,4 +195,59 @@ TEST(ConfigTree, ConfigValue)
 
     std::optional<double> x = cfg.get("");
     EXPECT_TRUE(x.has_value());
+}
+
+static decltype(auto) loadLuaFile()
+{
+    return confetti::ConfigTree::loadLuaFile(CONFETTI_SOURCE_DIR "/confetti/config_tree_test.lua");
+}
+
+TEST(ConfigTree, LuaLoadFile) { ASSERT_TRUE(loadLuaFile()); }
+
+TEST(ConfigTree, LuaStringArray)
+{
+    static const char* values[] = {"Moscow", "never", "sleeps"};
+
+    auto list = loadLuaFile()["string_list"];
+
+    for (int i = 0; i < static_cast<int>(std::size(values)); ++i) {
+        EXPECT_EQ(values[i], list.at<std::string>(i));
+    }
+
+    int i = 0;
+    for (const auto& s : list.values<std::string>()) {
+        EXPECT_EQ(values[i], s);
+        ++i;
+    }
+    EXPECT_EQ(std::size(values), i);
+}
+
+namespace {
+
+template <typename T>
+class ConfigTreeNumeric : public testing::Test {
+protected:
+    static constexpr T values[] = {T{1962}, T{1968}, T{1986}, T{2021}};
+};
+
+using NumericTestingTypes = testing::Types<int32_t, int64_t, uint32_t, uint64_t>;
+
+TYPED_TEST_SUITE(ConfigTreeNumeric, NumericTestingTypes);
+
+} // namespace
+
+TYPED_TEST(ConfigTreeNumeric, Array)
+{
+    auto list = loadLuaFile()["number_list"];
+
+    for (int i = 0; i < static_cast<int>(std::size(TestFixture::values)); ++i) {
+        EXPECT_EQ(TestFixture::values[i], list.at<int>(i));
+    }
+
+    int i = 0;
+    for (auto n : list.values<TypeParam>()) {
+        EXPECT_EQ(TestFixture::values[i], n);
+        ++i;
+    }
+    EXPECT_EQ(std::size(TestFixture::values), i);
 }

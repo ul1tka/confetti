@@ -22,7 +22,7 @@
 namespace confetti::internal {
 
 template <typename T, typename... N>
-constexpr static auto is_any_v = (std::is_same_v<T, N> || ...);
+constexpr static auto is_any_of_v = (std::is_same_v<T, N> || ...);
 
 } // namespace confetti::internal
 

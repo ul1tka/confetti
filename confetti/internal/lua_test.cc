@@ -96,7 +96,7 @@ TEST(LuaState, RunCode)
 static decltype(auto) loadTestFile()
 {
     return confetti::internal::LuaSource::loadFile(
-        std::filesystem::path{CONF_SOURCE_DIR "/confetti/internal/lua_test.lua"});
+        std::filesystem::path{CONFETTI_SOURCE_DIR "/confetti/internal/lua_test.lua"});
 }
 
 TEST(LuaTree, Boolean)

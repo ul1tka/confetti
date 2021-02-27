@@ -202,6 +202,18 @@ int LuaSource::getField(std::string_view name) const noexcept
     return invoke(lua_getfield(ref_, -1, name.data()));
 }
 
+bool LuaSource::hasValueAt(int index) const
+{
+    LuaStackGuard _{ref_};
+    switch (getField(index)) {
+        case LUA_TNUMBER:
+        case LUA_TBOOLEAN:
+        case LUA_TSTRING:
+            return true;
+    }
+    return false;
+}
+
 std::optional<bool> LuaSource::tryConvertToBoolean(int type) const
 {
     std::optional<bool> result;
