@@ -25,6 +25,7 @@ extern "C" {
 #include <cassert>
 #include <cctype>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 static bool strCaseEquals(std::string_view lhs, std::string_view rhs) noexcept
@@ -245,6 +246,7 @@ std::optional<bool> LuaTree::tryGetBoolean(std::string_view name) const
                     result.emplace(false);
                 } else {
                     char* eptr{};
+                    errno = 0;
                     auto n = std::strtod(data, &eptr);
                     if (eptr != nullptr && *eptr == '\0' && errno == 0)
                         result.emplace(n > 0);
@@ -278,14 +280,24 @@ std::optional<double> LuaTree::tryGetDouble(std::string_view name) const
         case LUA_TBOOLEAN:
             result.emplace(lua_toboolean(ref_, -1));
             break;
-        case LUA_TSTRING: // TODO: Describe error properly if cannot convert...
-            if (auto data = lua_tolstring(ref_, -1, nullptr)) {
+        case LUA_TSTRING: {
+            size_t size{};
+            if (auto data = lua_tolstring(ref_, -1, &size)) {
                 char* eptr{};
+                errno = 0;
                 auto value = std::strtod(data, &eptr);
-                if (eptr != nullptr && *eptr == '\0' && errno == 0)
+                const auto ec = errno;
+                if (eptr != nullptr && *eptr == '\0' && ec == 0) {
                     result.emplace(value);
+                } else {
+                    throw std::runtime_error{std::string{"Cannot convert string '"}
+                                                 .append(data, size)
+                                                 .append("' to double: ")
+                                                 .append(std::strerror(ec))};
+                }
             }
             break;
+        }
         default:
             result.emplace(lua_tonumber(ref_, -1));
             break;
