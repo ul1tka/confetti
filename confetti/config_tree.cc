@@ -14,11 +14,11 @@
 // limitations under the License.
 //
 
-#include "tree.hh"
+#include "config_tree.hh"
 #include "internal/lua.hh"
 #include <stdexcept>
 
-namespace conf {
+namespace confetti {
 
 void ConfigTree::noSuchChild(std::string_view name)
 {
@@ -35,4 +35,4 @@ ConfigTree ConfigTree::loadLuaFile(const std::filesystem::path& file)
     return ConfigTree{internal::LuaSource::loadFile(file)};
 }
 
-} // namespace conf
+} // namespace confetti

@@ -20,7 +20,7 @@
 
 TEST(Version, Parts)
 {
-    constexpr conf::Version version{123456789};
+    constexpr confetti::Version version{123456789};
     EXPECT_EQ(123456789, version.getValue());
     EXPECT_EQ(123, version.getMajor());
     EXPECT_EQ(456, version.getMinor());
@@ -29,30 +29,30 @@ TEST(Version, Parts)
 
 TEST(Version, CompileTimeMatchesRuntime)
 {
-    EXPECT_EQ(conf::getVersion(), conf::getRuntimeVersion());
+    EXPECT_EQ(confetti::getVersion(), confetti::getRuntimeVersion());
 }
 
 TEST(Version, ThreeWayComparison)
 {
-    EXPECT_LT(conf::Version{1}, conf::Version{2});
-    EXPECT_LE(conf::Version{1}, conf::Version{1});
-    EXPECT_GT(conf::Version{2}, conf::Version{1});
-    EXPECT_GE(conf::Version{1}, conf::Version{1});
-    EXPECT_EQ(conf::Version{1}, conf::Version{1});
-    EXPECT_NE(conf::Version{1}, conf::Version{2});
+    EXPECT_LT(confetti::Version{1}, confetti::Version{2});
+    EXPECT_LE(confetti::Version{1}, confetti::Version{1});
+    EXPECT_GT(confetti::Version{2}, confetti::Version{1});
+    EXPECT_GE(confetti::Version{1}, confetti::Version{1});
+    EXPECT_EQ(confetti::Version{1}, confetti::Version{1});
+    EXPECT_NE(confetti::Version{1}, confetti::Version{2});
 }
 
 TEST(Version, VersionMatchesMacros)
 {
-    EXPECT_EQ(CONF_VERSION, conf::getVersion().getValue());
-    EXPECT_EQ(CONF_VERSION_MAJOR, conf::getVersion().getMajor());
-    EXPECT_EQ(CONF_VERSION_MINOR, conf::getVersion().getMinor());
-    EXPECT_EQ(CONF_VERSION_PATCH, conf::getVersion().getPatch());
+    EXPECT_EQ(CONFETTI_VERSION, confetti::getVersion().getValue());
+    EXPECT_EQ(CONFETTI_VERSION_MAJOR, confetti::getVersion().getMajor());
+    EXPECT_EQ(CONFETTI_VERSION_MINOR, confetti::getVersion().getMinor());
+    EXPECT_EQ(CONFETTI_VERSION_PATCH, confetti::getVersion().getPatch());
 }
 
 TEST(Version, Output)
 {
-    for (auto version : {conf::getVersion(), conf::getRuntimeVersion()}) {
+    for (auto version : {confetti::getVersion(), confetti::getRuntimeVersion()}) {
         std::ostringstream stream;
         stream << version;
         EXPECT_EQ(std::to_string(version.getMajor()) + '.' + std::to_string(version.getMinor())

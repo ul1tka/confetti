@@ -14,10 +14,10 @@
 // limitations under the License.
 //
 
-#ifndef CONF_INTERNAL_LUA_HH
-#define CONF_INTERNAL_LUA_HH
+#ifndef CONFETTI_INTERNAL_LUA_HH
+#define CONFETTI_INTERNAL_LUA_HH
 
-#include "../source.hh"
+#include "../config_source.hh"
 #include <cstddef>
 #include <filesystem>
 #include <stdexcept>
@@ -26,17 +26,17 @@ extern "C" {
 struct lua_State;
 };
 
-namespace conf::internal {
+namespace confetti::internal {
 
 class LuaException final : public std::runtime_error {
+    explicit LuaException(const char* message);
+
 public:
-    explicit LuaException(const char* error_message);
-
-    explicit LuaException(lua_State* state);
-
     ~LuaException() override;
 
-    [[noreturn]] static int raise(lua_State* state);
+    [[noreturn]] static void raise(const char* message);
+
+    [[noreturn]] static void raise(lua_State* state);
 };
 
 class LuaState final {
@@ -45,19 +45,13 @@ public:
 
     LuaState(const LuaState&) = delete;
 
-    LuaState(LuaState&& other) noexcept;
-
     ~LuaState();
 
     LuaState& operator=(const LuaState&) = delete;
 
-    LuaState& operator=(LuaState&& other) noexcept;
-
     void close() noexcept;
 
-    operator lua_State*() const noexcept { return state_; }
-
-    explicit operator bool() const noexcept { return state_ != nullptr; }
+    operator lua_State*() const noexcept { return state_; } // NOLINT(google-explicit-constructor)
 
     [[noreturn]] void raise() const;
 
@@ -120,16 +114,16 @@ private:
     int top_;
 };
 
-class LuaSource final : public Source {
+class LuaSource final : public ConfigSource {
 public:
-    static SourcePtr loadFile(const std::filesystem::path& file);
+    static ConfigSourcePointer loadFile(const std::filesystem::path& file);
 
     ~LuaSource() override;
 
     LuaSource(const LuaSource&) = delete;
     LuaSource& operator=(const LuaSource&) = delete;
 
-    [[nodiscard]] SourcePtr tryGetChild(std::string_view name) const override;
+    [[nodiscard]] ConfigSourcePointer tryGetChild(std::string_view name) const override;
 
     [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view name) const override;
 
@@ -151,6 +145,6 @@ public:
     explicit LuaSource(SharedConstructTag, std::shared_ptr<LuaState> ref) noexcept;
 };
 
-} // namespace conf::internal
+} // namespace confetti::internal
 
-#endif
+#endif // CONFETTI_INTERNAL_LUA_HH

@@ -14,16 +14,29 @@
 // limitations under the License.
 //
 
-#include "version.hh"
-#include <iostream>
+#include "config_source.hh"
+#include <cmath>
 
-namespace conf {
+namespace confetti {
 
-Version getRuntimeVersion() noexcept { return getVersion(); }
+ConfigSource::~ConfigSource() = default;
 
-std::ostream& operator<<(std::ostream& out, const Version& version)
+std::optional<int64_t> ConfigSource::tryGetNumber(std::string_view name) const
 {
-    return out << version.getMajor() << '.' << version.getMinor() << '.' << version.getPatch();
+    std::optional<int64_t> result;
+    if (auto number = tryGetDouble(name)) {
+        result.emplace(std::llround(*number));
+    }
+    return result;
 }
 
-} // namespace conf
+std::optional<uint64_t> ConfigSource::tryGetUnsignedNumber(std::string_view name) const
+{
+    std::optional<uint64_t> result;
+    if (auto number = tryGetDouble(name)) {
+        result.emplace(static_cast<uint64_t>(std::llround(*number)));
+    }
+    return result;
+}
+
+} // namespace confetti

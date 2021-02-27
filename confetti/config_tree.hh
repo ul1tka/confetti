@@ -14,23 +14,23 @@
 // limitations under the License.
 //
 
-#ifndef CONF_TREE_HH
-#define CONF_TREE_HH
+#ifndef CONFETTI_CONFIG_TREE_HH
+#define CONFETTI_CONFIG_TREE_HH
 
+#include "config_source.hh"
 #include "internal/type_traits.hh"
-#include "source.hh"
 #include <compare>
 #include <filesystem>
 
-namespace conf {
+namespace confetti {
 
-class FutureValue;
+class ConfigValue;
 
 class ConfigTree final {
 public:
     ConfigTree() noexcept = default;
 
-    explicit ConfigTree(SourcePtr source) noexcept
+    explicit ConfigTree(ConfigSourcePointer source) noexcept
         : source_{std::move(source)}
     {
     }
@@ -52,7 +52,7 @@ public:
 
     [[nodiscard]] ConfigTree tryGetChild(std::string_view name) const
     {
-        SourcePtr result;
+        ConfigSourcePointer result;
         if (source_)
             result = source_->tryGetChild(name);
         return ConfigTree{std::move(result)};
@@ -70,14 +70,14 @@ public:
 
     [[nodiscard]] decltype(auto) tryGetBoolean(std::string_view name) const
     {
-        return tryGet(&Source::tryGetBoolean, name);
+        return tryGet(&ConfigSource::tryGetBoolean, name);
     }
 
     [[nodiscard]] decltype(auto) getBoolean(std::string_view name) const { return get<bool>(name); }
 
     [[nodiscard]] decltype(auto) tryGetNumber(std::string_view name) const
     {
-        return tryGet(&Source::tryGetNumber, name);
+        return tryGet(&ConfigSource::tryGetNumber, name);
     }
 
     [[nodiscard]] decltype(auto) getNumber(std::string_view name) const
@@ -87,7 +87,7 @@ public:
 
     [[nodiscard]] decltype(auto) tryGetUnsignedNumber(std::string_view name) const
     {
-        return tryGet(&Source::tryGetUnsignedNumber, name);
+        return tryGet(&ConfigSource::tryGetUnsignedNumber, name);
     }
 
     [[nodiscard]] decltype(auto) getUnsignedNumber(std::string_view name) const
@@ -97,7 +97,7 @@ public:
 
     [[nodiscard]] decltype(auto) tryGetDouble(std::string_view name) const
     {
-        return tryGet(&Source::tryGetDouble, name);
+        return tryGet(&ConfigSource::tryGetDouble, name);
     }
 
     [[nodiscard]] decltype(auto) getDouble(std::string_view name) const
@@ -107,7 +107,7 @@ public:
 
     [[nodiscard]] decltype(auto) tryGetString(std::string_view name) const
     {
-        return tryGet(&Source::tryGetString, name);
+        return tryGet(&ConfigSource::tryGetString, name);
     }
 
     [[nodiscard]] decltype(auto) getString(std::string_view name) const
@@ -144,13 +144,14 @@ public:
         return *std::move(result);
     }
 
-    FutureValue get(std::string name) const;
+    [[nodiscard]] ConfigValue get(std::string name) const;
 
     [[nodiscard]] static ConfigTree loadLuaFile(const std::filesystem::path& file);
 
 private:
     template <typename R>
-    [[nodiscard]] R tryGet(R (Source::*getter)(std::string_view) const, std::string_view name) const
+    [[nodiscard]] R tryGet(
+        R (ConfigSource::*getter)(std::string_view) const, std::string_view name) const
     {
         return source_ ? (source_.get()->*getter)(name) : R{};
     }
@@ -159,13 +160,13 @@ private:
 
     [[noreturn]] static void noSuchKey(std::string_view name);
 
-    SourcePtr source_;
+    ConfigSourcePointer source_;
 };
 
-class FutureValue final {
+class ConfigValue final {
 public:
-    explicit FutureValue(ConfigTree tree, std::string name)
-        : tree_{tree}
+    explicit ConfigValue(ConfigTree tree, std::string name)
+        : tree_{std::move(tree)}
         , name_{std::move(name)}
     {
     }
@@ -197,11 +198,11 @@ private:
     std::string name_;
 };
 
-inline FutureValue ConfigTree::get(std::string name) const
+inline ConfigValue ConfigTree::get(std::string name) const
 {
-    return FutureValue{*this, std::move(name)};
+    return ConfigValue{*this, std::move(name)};
 }
 
-} // namespace conf
+} // namespace confetti
 
-#endif
+#endif // CONFETTI_CONFIG_TREE_HH

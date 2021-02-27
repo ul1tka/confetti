@@ -14,15 +14,15 @@
 // limitations under the License.
 //
 
-#ifndef CONF_INTERNAL_VERSION_HH
-#define CONF_INTERNAL_VERSION_HH
+#ifndef CONFETTI_INTERNAL_VERSION_HH
+#define CONFETTI_INTERNAL_VERSION_HH
 
-#ifndef CONF_VERSION_HH
+#ifndef CONFETTI_VERSION_HH
 #    error "This file should not be included directly"
 #endif
 
 // clang-format off
-#cmakedefine CONF_VERSION @CONF_VERSION@
+#cmakedefine CONFETTI_VERSION @CONFETTI_VERSION@
 // clang-format on
 
-#endif
+#endif // CONFETTI_INTERNAL_VERSION_HH
