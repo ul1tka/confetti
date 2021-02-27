@@ -15,7 +15,6 @@
 //
 
 #include "lua.hh"
-#include "../tree.hh"
 
 extern "C" {
 #include <lauxlib.h>
@@ -29,7 +28,7 @@ extern "C" {
 #include <cstring>
 #include <string>
 
-namespace conf::internal {
+namespace confetti::internal {
 
 static bool strCaseEquals(std::string_view lhs, std::string_view rhs) noexcept
 {
@@ -43,44 +42,30 @@ static bool strCaseAnyOf(std::string_view lhs, T... rhs) noexcept
     return (strCaseEquals(lhs, rhs) || ...);
 }
 
-static std::string getErrorMessage(lua_State* state) noexcept
-{
-    std::string result;
-    if (state) {
-        const char* message = lua_tostring(state, -1);
-        if (message) {
-            result.assign("Fatal Lua error: ").append(message);
-            lua_pop(state, 1);
-            return result;
-        }
-    }
-    result.assign("Fatal Lua error");
-    return result;
-}
-
-LuaException::LuaException(const char* error_message)
-    : std::runtime_error{error_message}
-{
-}
-
-LuaException::LuaException(lua_State* state)
-    : std::runtime_error{getErrorMessage(state)}
+LuaException::LuaException(const char* message)
+    : std::runtime_error{message}
 {
 }
 
 LuaException::~LuaException() = default;
 
-int LuaException::raise(lua_State* state) { throw LuaException{state}; }
+void LuaException::raise(const char* message) { throw LuaException{message}; }
+
+void LuaException::raise(lua_State* state)
+{
+    const char* message;
+    raise(state && (message = lua_tostring(state, -1)) ? message : "Lua error");
+}
+
+[[noreturn]] static int on_lua_panic(lua_State* state) { LuaException::raise(state); }
 
 LuaState::LuaState()
-    : state_{}
+    : state_{lua_newstate(&alloc, this)}
 {
-    state_ = lua_newstate(&alloc, this);
-
     if (!state_)
-        throw LuaException{"Cannot create Lua stack"};
+        LuaException::raise("Cannot create Lua stack");
 
-    lua_atpanic(state_, &LuaException::raise);
+    lua_atpanic(state_, &on_lua_panic);
 
     luaopen_base(state_);
     luaopen_coroutine(state_);
@@ -92,12 +77,6 @@ LuaState::LuaState()
     luaopen_math(state_);
     luaopen_debug(state_);
     luaopen_package(state_);
-}
-
-LuaState::LuaState(LuaState&& other) noexcept
-    : state_{other.state_}
-{
-    other.state_ = nullptr;
 }
 
 LuaState::~LuaState() { close(); }
@@ -116,13 +95,6 @@ void LuaState::close() noexcept
         lua_close(state_);
         state_ = nullptr;
     }
-}
-
-LuaState& LuaState::operator=(LuaState&& other) noexcept
-{
-    close();
-    std::swap(state_, other.state_);
-    return *this;
 }
 
 void* LuaState::alloc(
@@ -243,13 +215,10 @@ std::optional<bool> LuaSource::tryGetBoolean(std::string_view name) const
                 } else if (strCaseAnyOf(value, "n", "no", "false", "0")) {
                     result.emplace(false);
                 } else {
-                    char* eptr{};
                     errno = 0;
-                    auto n = std::strtod(data, &eptr);
-                    if (eptr != nullptr && *eptr == '\0' && errno == 0)
-                        result.emplace(n > 0);
-                    else
-                        result.emplace(false);
+                    char* end_ptr{};
+                    const auto n = std::strtod(data, &end_ptr);
+                    result.emplace(end_ptr && *end_ptr == '\0' && errno == 0 && n > 0);
                 }
             }
             break;
@@ -281,11 +250,11 @@ std::optional<double> LuaSource::tryGetDouble(std::string_view name) const
         case LUA_TSTRING: {
             size_t size{};
             if (auto data = lua_tolstring(ref_, -1, &size)) {
-                char* eptr{};
+                char* end_ptr{};
                 errno = 0;
-                auto value = std::strtod(data, &eptr);
+                auto value = std::strtod(data, &end_ptr);
                 const auto ec = errno;
-                if (eptr != nullptr && *eptr == '\0' && ec == 0) {
+                if (end_ptr != nullptr && *end_ptr == '\0' && ec == 0) {
                     result.emplace(value);
                 } else {
                     throw std::runtime_error{std::string{"Cannot convert string '"}
@@ -326,9 +295,9 @@ std::optional<std::string> LuaSource::tryGetString(std::string_view name) const
     return result;
 }
 
-std::shared_ptr<Source> LuaSource::tryGetChild(std::string_view name) const
+std::shared_ptr<ConfigSource> LuaSource::tryGetChild(std::string_view name) const
 {
-    std::shared_ptr<Source> result;
+    std::shared_ptr<ConfigSource> result;
     LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TTABLE:
@@ -338,7 +307,7 @@ std::shared_ptr<Source> LuaSource::tryGetChild(std::string_view name) const
     return result;
 }
 
-SourcePtr LuaSource::loadFile(const std::filesystem::path& file)
+ConfigSourcePointer LuaSource::loadFile(const std::filesystem::path& file)
 {
     LuaReference ref;
     lua_newtable(ref);
@@ -349,4 +318,4 @@ SourcePtr LuaSource::loadFile(const std::filesystem::path& file)
     return std::make_shared<LuaSource>(SharedConstructTag{}, std::move(ref));
 }
 
-} // namespace conf::internal
+} // namespace confetti::internal

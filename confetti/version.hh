@@ -14,19 +14,19 @@
 // limitations under the License.
 //
 
-#ifndef CONF_VERSION_HH
-#define CONF_VERSION_HH
+#ifndef CONFETTI_VERSION_HH
+#define CONFETTI_VERSION_HH
 
-#include <conf/internal/version.hh>
+#include <confetti/internal/version.hh>
 
 #include <compare>
 #include <iosfwd>
 
-#define CONF_VERSION_MAJOR (CONF_VERSION / 1000000)
-#define CONF_VERSION_MINOR (CONF_VERSION / 1000 % 1000)
-#define CONF_VERSION_PATCH (CONF_VERSION % 1000)
+#define CONFETTI_VERSION_MAJOR (CONFETTI_VERSION / 1000000)
+#define CONFETTI_VERSION_MINOR (CONFETTI_VERSION / 1000 % 1000)
+#define CONFETTI_VERSION_PATCH (CONFETTI_VERSION % 1000)
 
-namespace conf {
+namespace confetti {
 
 class Version final {
 public:
@@ -51,12 +51,12 @@ private:
     ValueType value_;
 };
 
-[[nodiscard]] constexpr Version getVersion() noexcept { return Version{CONF_VERSION}; }
+[[nodiscard]] constexpr Version getVersion() noexcept { return Version{CONFETTI_VERSION}; }
 
 [[nodiscard]] Version getRuntimeVersion() noexcept;
 
 std::ostream& operator<<(std::ostream& out, const Version& version);
 
-} // namespace conf
+} // namespace confetti
 
-#endif
+#endif // CONFETTI_VERSION_HH

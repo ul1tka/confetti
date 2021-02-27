@@ -14,26 +14,30 @@
 // limitations under the License.
 //
 
-#ifndef CONF_INTERFACE_HH
-#define CONF_INTERFACE_HH
+#ifndef CONFETTI_CONFIG_SOURCE_HH
+#define CONFETTI_CONFIG_SOURCE_HH
 
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 
-namespace conf {
+namespace confetti {
 
-class Source {
+class ConfigSource;
+
+using ConfigSourcePointer = std::shared_ptr<ConfigSource>;
+
+class ConfigSource {
 public:
-    Source() noexcept = default;
+    ConfigSource() noexcept = default;
 
-    virtual ~Source();
+    virtual ~ConfigSource();
 
-    Source(const Source&) = delete;
-    Source& operator=(const Source&) = delete;
+    ConfigSource(const ConfigSource&) = delete;
+    ConfigSource& operator=(const ConfigSource&) = delete;
 
-    [[nodiscard]] virtual std::shared_ptr<Source> tryGetChild(std::string_view name) const = 0;
+    [[nodiscard]] virtual ConfigSourcePointer tryGetChild(std::string_view name) const = 0;
 
     [[nodiscard]] virtual std::optional<bool> tryGetBoolean(std::string_view name) const = 0;
 
@@ -46,8 +50,6 @@ public:
     [[nodiscard]] virtual std::optional<std::string> tryGetString(std::string_view name) const = 0;
 };
 
-using SourcePtr = std::shared_ptr<Source>;
+} // namespace confetti
 
-} // namespace conf
-
-#endif
+#endif // CONFETTI_CONFIG_SOURCE_HH

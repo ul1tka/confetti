@@ -14,15 +14,18 @@
 // limitations under the License.
 //
 
-#include "tree.hh"
+#include "config_tree.hh"
 #include <gtest/gtest.h>
 
 namespace {
 
-struct EmptySource final : conf::Source {
+struct EmptySource final : confetti::ConfigSource {
     ~EmptySource() override = default;
 
-    [[nodiscard]] conf::SourcePtr tryGetChild(std::string_view) const override { return {}; }
+    [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override
+    {
+        return {};
+    }
 
     [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view) const override { return {}; }
 
@@ -34,10 +37,10 @@ struct EmptySource final : conf::Source {
     }
 };
 
-struct FullSource final : conf::Source {
+struct FullSource final : confetti::ConfigSource {
     ~FullSource() override = default;
 
-    [[nodiscard]] conf::SourcePtr tryGetChild(std::string_view) const override
+    [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override
     {
         return std::make_shared<FullSource>();
     }
@@ -62,18 +65,18 @@ struct FullSource final : conf::Source {
 
 TEST(ConfigTree, EmptyTree)
 {
-    conf::ConfigTree tree1;
+    confetti::ConfigTree tree1;
 
     EXPECT_FALSE(tree1);
 
-    conf::ConfigTree tree2{tree1};
+    confetti::ConfigTree tree2{tree1};
 
     tree1 = tree2;
     tree2 = std::move(tree1);
-    EXPECT_FALSE(tree1 < tree2);
+    EXPECT_FALSE(tree1 < tree2); // NOLINT(bugprone-use-after-move)
     EXPECT_FALSE(tree1 > tree2);
 
-    conf::ConfigTree tree3{std::make_shared<EmptySource>()};
+    confetti::ConfigTree tree3{std::make_shared<EmptySource>()};
 
     EXPECT_TRUE(tree3);
     EXPECT_TRUE(tree3 > tree1);
@@ -82,7 +85,7 @@ TEST(ConfigTree, EmptyTree)
     tree1 = std::move(tree3);
 
     EXPECT_TRUE(tree1);
-    EXPECT_FALSE(tree3);
+    EXPECT_FALSE(tree3); // NOLINT(bugprone-use-after-move)
 
     tree2 = tree1;
 
@@ -92,7 +95,7 @@ TEST(ConfigTree, EmptyTree)
     tree3 = std::move(tree2);
 
     EXPECT_TRUE(tree3);
-    EXPECT_FALSE(tree2);
+    EXPECT_FALSE(tree2); // NOLINT(bugprone-use-after-move)
 }
 
 TEST(ConfigTree, EmptySourceGetters)
@@ -113,13 +116,13 @@ TEST(ConfigTree, EmptySourceGetters)
         EXPECT_ANY_THROW((void)cfg.template get<double>(""));
         EXPECT_ANY_THROW((void)cfg.template get<std::string>(""));
     };
-    check(conf::ConfigTree{});
-    check(conf::ConfigTree{std::make_shared<EmptySource>()});
+    check(confetti::ConfigTree{});
+    check(confetti::ConfigTree{std::make_shared<EmptySource>()});
 }
 
 TEST(ConfigTree, FullSource)
 {
-    conf::ConfigTree cfg{std::make_shared<FullSource>()};
+    confetti::ConfigTree cfg{std::make_shared<FullSource>()};
 
     EXPECT_TRUE(cfg.tryGetChild(""));
     EXPECT_TRUE(cfg.tryGetBoolean("").value());
@@ -138,9 +141,9 @@ TEST(ConfigTree, FullSource)
     EXPECT_EQ("Hello!", cfg.template get<std::string>(""));
 }
 
-TEST(ConfigTree, FutureValue)
+TEST(ConfigTree, ConfigValue)
 {
-    conf::ConfigTree cfg{std::make_shared<FullSource>()};
+    confetti::ConfigTree cfg{std::make_shared<FullSource>()};
     const auto value = cfg.get("");
     {
         double v = value;
@@ -150,7 +153,7 @@ TEST(ConfigTree, FutureValue)
         std::string x = value;
         EXPECT_EQ("Hello!", x);
     }
-    conf::ConfigTree subTree = value;
+    confetti::ConfigTree subTree = value;
     EXPECT_DOUBLE_EQ(19.86, subTree.get(""));
 
     std::optional<double> x = cfg.get("");

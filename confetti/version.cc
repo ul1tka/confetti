@@ -14,16 +14,16 @@
 // limitations under the License.
 //
 
-#ifndef CONF_INTERNAL_TYPE_TRAITS_HH
-#define CONF_INTERNAL_TYPE_TRAITS_HH
+#include "version.hh"
+#include <iostream>
 
-#include <type_traits>
+namespace confetti {
 
-namespace conf::internal {
+Version getRuntimeVersion() noexcept { return getVersion(); }
 
-template <typename T, typename... N>
-constexpr static auto is_any_v = (std::is_same_v<T, N> || ...);
+std::ostream& operator<<(std::ostream& out, const Version& version)
+{
+    return out << version.getMajor() << '.' << version.getMinor() << '.' << version.getPatch();
+}
 
-} // namespace conf::internal
-
-#endif
+} // namespace confetti

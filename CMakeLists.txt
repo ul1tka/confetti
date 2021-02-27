@@ -147,20 +147,20 @@ enable_testing()
 # Confetti Library
 #
 
-set(CONF_VERSION 1)
+set(CONFETTI_VERSION 1)
 
 configure_file(
-        conf/internal/version.hh.in
-        ${CMAKE_CURRENT_BINARY_DIR}/include/conf/internal/version.hh
+        confetti/internal/version.hh.in
+        ${CMAKE_CURRENT_BINARY_DIR}/include/confetti/internal/version.hh
         @ONLY NEWLINE_STYLE UNIX
 )
 
 add_library(
         confetti
-        conf/version.cc
-        conf/source.cc
-        conf/tree.cc
-        conf/internal/lua.cc
+        confetti/version.cc
+        confetti/config_source.cc
+        confetti/config_tree.cc
+        confetti/internal/lua.cc
 )
 
 target_link_libraries(confetti PUBLIC lua)
@@ -193,9 +193,10 @@ endif ()
 
 add_executable(
         test-confetti
-        conf/version_test.cc
-        conf/tree_test.cc
-        conf/internal/lua_test.cc
+        confetti/version_test.cc
+        confetti/config_source_test.cc
+        confetti/config_tree_test.cc
+        confetti/internal/lua_test.cc
 )
 
 target_link_libraries(test-confetti PRIVATE gtest gmock gtest_main confetti)

@@ -14,29 +14,16 @@
 // limitations under the License.
 //
 
-#include "source.hh"
-#include <cmath>
+#ifndef CONFETTI_INTERNAL_TYPE_TRAITS_HH
+#define CONFETTI_INTERNAL_TYPE_TRAITS_HH
 
-namespace conf {
+#include <type_traits>
 
-Source::~Source() = default;
+namespace confetti::internal {
 
-std::optional<int64_t> Source::tryGetNumber(std::string_view name) const
-{
-    std::optional<int64_t> result;
-    if (auto number = tryGetDouble(name)) {
-        result.emplace(std::llround(*number));
-    }
-    return result;
-}
+template <typename T, typename... N>
+constexpr static auto is_any_v = (std::is_same_v<T, N> || ...);
 
-std::optional<uint64_t> Source::tryGetUnsignedNumber(std::string_view name) const
-{
-    std::optional<uint64_t> result;
-    if (auto number = tryGetDouble(name)) {
-        result.emplace(static_cast<uint64_t>(std::llround(*number)));
-    }
-    return result;
-}
+} // namespace confetti::internal
 
-} // namespace conf
+#endif // CONFETTI_INTERNAL_TYPE_TRAITS_HH
