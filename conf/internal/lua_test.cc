@@ -15,7 +15,7 @@
 //
 
 #include "lua.hh"
-#include "tree.hh"
+#include "../tree.hh"
 
 extern "C" {
 #include <lauxlib.h>
@@ -25,10 +25,10 @@ extern "C" {
 #include <memory>
 #include <type_traits>
 
-static conf::ConfigTree loadTree()
+static decltype(auto) loadTree()
 {
-    return conf::ConfigTree{
-        conf::LuaTree::loadFile(std::filesystem::path{CONF_SOURCE_DIR} / "conf" / "lua_test.lua")};
+    return conf::ConfigTree::loadLuaFile(
+        std::filesystem::path{CONF_SOURCE_DIR "/conf/internal/lua_test.lua"});
 }
 
 TEST(LuaException, RaiseWithoutState)

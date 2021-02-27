@@ -15,6 +15,7 @@
 //
 
 #include "lua.hh"
+#include "../tree.hh"
 
 extern "C" {
 #include <lauxlib.h>
@@ -28,6 +29,8 @@ extern "C" {
 #include <cstring>
 #include <string>
 
+namespace conf::internal {
+
 static bool strCaseEquals(std::string_view lhs, std::string_view rhs) noexcept
 {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
@@ -39,9 +42,6 @@ static bool strCaseAnyOf(std::string_view lhs, T... rhs) noexcept
 {
     return (strCaseEquals(lhs, rhs) || ...);
 }
-
-namespace conf {
-namespace internal {
 
 static std::string getErrorMessage(lua_State* state) noexcept
 {
@@ -201,35 +201,33 @@ LuaStackGuard::LuaStackGuard(const LuaReference& ref) noexcept
 
 LuaStackGuard::~LuaStackGuard() noexcept { lua_settop(state_, top_); }
 
-} // namespace internal
-
-LuaTree::LuaTree(SharedConstructTag, internal::LuaReference&& ref) noexcept
+LuaSource::LuaSource(SharedConstructTag, LuaReference&& ref) noexcept
     : ref_{std::move(ref)}
 {
 }
 
-LuaTree::LuaTree(SharedConstructTag, std::shared_ptr<internal::LuaState> ref) noexcept
+LuaSource::LuaSource(SharedConstructTag, std::shared_ptr<LuaState> ref) noexcept
     : ref_{std::move(ref)}
 {
 }
 
-LuaTree::~LuaTree() = default;
+LuaSource::~LuaSource() = default;
 
-int LuaTree::loadField(std::string_view name) const noexcept
+int LuaSource::loadField(std::string_view name) const noexcept
 {
     auto type = lua_getfield(ref_, -1, name.data());
     while (type == LUA_TFUNCTION) {
         if (lua_pcall(ref_, 0, 1, 0) != LUA_OK)
-            internal::LuaException::raise(ref_);
+            LuaException::raise(ref_);
         type = lua_type(ref_, -1);
     }
     return type;
 }
 
-std::optional<bool> LuaTree::tryGetBoolean(std::string_view name) const
+std::optional<bool> LuaSource::tryGetBoolean(std::string_view name) const
 {
     std::optional<bool> result;
-    internal::LuaStackGuard _{ref_};
+    LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TNIL:
         case LUA_TUSERDATA:
@@ -267,10 +265,10 @@ std::optional<bool> LuaTree::tryGetBoolean(std::string_view name) const
     return result;
 }
 
-std::optional<double> LuaTree::tryGetDouble(std::string_view name) const
+std::optional<double> LuaSource::tryGetDouble(std::string_view name) const
 {
     std::optional<double> result;
-    internal::LuaStackGuard _{ref_};
+    LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TNIL:
         case LUA_TUSERDATA:
@@ -305,10 +303,10 @@ std::optional<double> LuaTree::tryGetDouble(std::string_view name) const
     return result;
 }
 
-std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
+std::optional<std::string> LuaSource::tryGetString(std::string_view name) const
 {
     std::optional<std::string> result;
-    internal::LuaStackGuard _{ref_};
+    LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TNIL:
         case LUA_TUSERDATA:
@@ -328,27 +326,27 @@ std::optional<std::string> LuaTree::tryGetString(std::string_view name) const
     return result;
 }
 
-std::shared_ptr<Source> LuaTree::tryGetChild(std::string_view name) const
+std::shared_ptr<Source> LuaSource::tryGetChild(std::string_view name) const
 {
     std::shared_ptr<Source> result;
-    internal::LuaStackGuard _{ref_};
+    LuaStackGuard _{ref_};
     switch (loadField(name)) {
         case LUA_TTABLE:
-            result = std::make_shared<LuaTree>(SharedConstructTag{}, ref_.getState());
+            result = std::make_shared<LuaSource>(SharedConstructTag{}, ref_.getState());
             break;
     }
     return result;
 }
 
-SourcePtr LuaTree::loadFile(const std::filesystem::path& file)
+SourcePtr LuaSource::loadFile(const std::filesystem::path& file)
 {
-    internal::LuaReference ref;
+    LuaReference ref;
     lua_newtable(ref);
     lua_pushvalue(ref, -1);
     lua_setglobal(ref, "Confetti");
     ref.set();
     ref->runFile(file);
-    return std::make_shared<LuaTree>(SharedConstructTag{}, std::move(ref));
+    return std::make_shared<LuaSource>(SharedConstructTag{}, std::move(ref));
 }
 
-} // namespace conf
+} // namespace conf::internal

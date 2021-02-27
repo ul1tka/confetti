@@ -14,21 +14,19 @@
 // limitations under the License.
 //
 
-#ifndef CONF_LUA_HH
-#define CONF_LUA_HH
+#ifndef CONF_INTERNAL_LUA_HH
+#define CONF_INTERNAL_LUA_HH
 
-#include "source.hh"
+#include "../source.hh"
 #include <cstddef>
 #include <filesystem>
-#include <memory>
 #include <stdexcept>
 
 extern "C" {
 struct lua_State;
 };
 
-namespace conf {
-namespace internal {
+namespace conf::internal {
 
 class LuaException final : public std::runtime_error {
 public:
@@ -99,9 +97,9 @@ public:
 
     LuaState* operator->() const noexcept { return state_.get(); }
 
-    operator lua_State*() const noexcept { return *state_; }
+    operator lua_State*() const noexcept { return *state_; } // NOLINT(google-explicit-constructor)
 
-    std::shared_ptr<LuaState> getState() const noexcept { return state_; }
+    [[nodiscard]] std::shared_ptr<LuaState> getState() const noexcept { return state_; }
 
 private:
     std::shared_ptr<LuaState> state_;
@@ -122,16 +120,14 @@ private:
     int top_;
 };
 
-} // namespace internal
-
-class LuaTree final : public Source {
+class LuaSource final : public Source {
 public:
     static SourcePtr loadFile(const std::filesystem::path& file);
 
-    ~LuaTree() override;
+    ~LuaSource() override;
 
-    LuaTree(const LuaTree&) = delete;
-    LuaTree& operator=(const LuaTree&) = delete;
+    LuaSource(const LuaSource&) = delete;
+    LuaSource& operator=(const LuaSource&) = delete;
 
     [[nodiscard]] SourcePtr tryGetChild(std::string_view name) const override;
 
@@ -147,14 +143,14 @@ private:
 
     [[nodiscard]] int loadField(std::string_view name) const noexcept;
 
-    internal::LuaReference ref_;
+    LuaReference ref_;
 
 public:
-    explicit LuaTree(SharedConstructTag, internal::LuaReference&& ref) noexcept;
+    explicit LuaSource(SharedConstructTag, LuaReference&& ref) noexcept;
 
-    explicit LuaTree(SharedConstructTag, std::shared_ptr<internal::LuaState> ref) noexcept;
+    explicit LuaSource(SharedConstructTag, std::shared_ptr<LuaState> ref) noexcept;
 };
 
-} // namespace conf
+} // namespace conf::internal
 
 #endif

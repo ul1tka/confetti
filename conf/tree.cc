@@ -15,6 +15,7 @@
 //
 
 #include "tree.hh"
+#include "internal/lua.hh"
 #include <stdexcept>
 
 namespace conf {
@@ -27,6 +28,11 @@ void ConfigTree::noSuchChild(std::string_view name)
 void ConfigTree::noSuchKey(std::string_view name)
 {
     throw std::runtime_error{std::string{"Cannot find config value for key "}.append(name)};
+}
+
+ConfigTree ConfigTree::loadLuaFile(const std::filesystem::path& file)
+{
+    return ConfigTree{internal::LuaSource::loadFile(file)};
 }
 
 } // namespace conf
