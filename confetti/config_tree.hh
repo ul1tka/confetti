@@ -19,7 +19,6 @@
 
 #include "config_source.hh"
 #include "internal/type_traits.hh"
-#include <cassert>
 #include <compare>
 #include <filesystem>
 
@@ -44,9 +43,7 @@ public:
 
         bool operator!=(EndIterator) const noexcept
         {
-            assert(tree_);
-            assert(tree_->source_);
-            return tree_->source_->hasValueAt(index_);
+            return tree_->source_ && tree_->source_->hasValueAt(index_);
         }
 
         Iterator& operator++()

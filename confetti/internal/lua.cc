@@ -235,7 +235,8 @@ std::optional<bool> LuaSource::tryConvertToBoolean(int type) const
                     errno = 0;
                     char* end_ptr{};
                     const auto n = std::strtod(data, &end_ptr);
-                    result.emplace(end_ptr && *end_ptr == '\0' && errno == 0 && n > 0);
+                    result.emplace(
+                        (end_ptr && *end_ptr == '\0' && errno == 0) ? static_cast<bool>(n) : false);
                 }
             }
             break;
