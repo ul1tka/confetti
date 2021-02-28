@@ -19,12 +19,41 @@ set -ex
 
 mkdir build && cd build
 
-export MAKEFLAGS="-j"
+case "${TRAVIS_OS_NAME}" in
+    "osx")
+        export CMAKE_BUILD_PARALLEL_LEVEL=$(($(sysctl -n hw.ncpu) * 2))
+        ;;
+    "linux")
+        export CMAKE_BUILD_PARALLEL_LEVEL=$(($(nproc) * 2))
+        ;;
+esac
 
-command -v ninja > /dev/null && CMAKE_FLAGS="-GNinja"
+#
+# Build Lua
+#
+# http://lua.space/general/ci-with-lua
+# https://github.com/lzubiaur/ini.lua
+#
+
+pip install hererocks
+
+hererocks lua_install -r^ --lua=5.4
+
+export LUA_DIR="${PWD}/lua_install"
+
+export PATH="${LUA_DIR}/bin:${PATH}"
+
+luarocks install lpeg
+luarocks install busted
+
+wget https://raw.githubusercontent.com/lzubiaur/ini.lua/master/ini.lua \
+    -O "${LUA_DIR}/share/lua/5.4/ini.lua"
+
+# Build Confetti
+
+command -v ninja > /dev/null && CMAKE_FLAGS="-GNinja ${CMAKE_FLAGS}"
 
 test -n "${CC}" && CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPIER=${CC}"
-
 test -n "${CXX}" && CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_CXX_COMPIER=${CXX}"
 
 BUILD_TYPE=${BUILD_TYPE:-Debug}
@@ -33,14 +62,16 @@ cmake \
     ${CMAKE_FLAGS} \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
+    -DLUA_INCLUDE_DIR="${LUA_DIR}/include" \
+    -DLUA_LIBRARIES="${LUA_DIR}/lib/liblua54.a" \
     ..
 
-cmake --build .
+cmake --build . -- -j ${CMAKE_BUILD_PARALLEL_LEVEL}
 
 ctest \
     --repeat-until-fail 2 \
     --timeout 600 \
-    --parallel \
+    --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} \
     --schedule-random \
     --output-on-failure
 
@@ -50,6 +81,5 @@ if [ "${BUILD_TYPE}" = "Coverage" ]; then
         --gcov "${GCOV:=gcov}" \
         --gcov-options '\-lp' \
         --exclude-pattern '.*/build/CMakeFiles/.*' \
-        --exclude-pattern '.*/build/_deps/.*' \
-        --exclude-pattern '.*/bench/.*'
+        --exclude-pattern '.*/build/_deps/.*'
 fi
