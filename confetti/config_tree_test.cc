@@ -15,7 +15,7 @@
 //
 
 #include "config_tree.hh"
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 namespace {
 
@@ -84,6 +84,21 @@ struct FullSource final : confetti::ConfigSource {
     }
 };
 
+template <typename T>
+class ConfigTreeNumeric : public testing::Test {
+protected:
+    static constexpr T values[] = {T{1962}, T{1968}, T{1986}, T{2021}};
+};
+
+using NumericTestingTypes = testing::Types<int32_t, int64_t, uint32_t, uint64_t>;
+
+TYPED_TEST_SUITE(ConfigTreeNumeric, NumericTestingTypes);
+
+decltype(auto) loadLuaFile()
+{
+    return confetti::ConfigTree::loadLuaFile(CONFETTI_SOURCE_DIR "/confetti/config_tree_test.lua");
+}
+
 } // namespace
 
 TEST(ConfigTree, EmptyTree)
@@ -126,12 +141,15 @@ TEST(ConfigTree, EmptySourceGetters)
     auto check = [&](auto&& cfg) {
         EXPECT_FALSE(cfg.tryGetChild(0));
         EXPECT_FALSE(cfg.tryGetChild(""));
+        EXPECT_FALSE(cfg.tryGetChild(confetti::ConfigPath{}));
         EXPECT_FALSE(cfg.tryGetBoolean(0));
         EXPECT_FALSE(cfg.tryGetBoolean(""));
+        EXPECT_FALSE(cfg.tryGetBoolean(confetti::ConfigPath{}));
         EXPECT_FALSE(cfg.tryGetDouble(0));
         EXPECT_FALSE(cfg.tryGetDouble(""));
         EXPECT_FALSE(cfg.tryGetString(0));
         EXPECT_FALSE(cfg.tryGetString(""));
+        EXPECT_FALSE(cfg.template tryGet<bool>(confetti::ConfigPath{}));
         EXPECT_FALSE(cfg.template tryGet<bool>(""));
         EXPECT_FALSE(cfg.template tryGet<bool>(0));
         EXPECT_FALSE(cfg.template tryGet<double>(""));
@@ -141,6 +159,7 @@ TEST(ConfigTree, EmptySourceGetters)
         EXPECT_ANY_THROW((void)cfg.getChild(""));
         EXPECT_ANY_THROW((void)cfg.getChild(0));
         EXPECT_ANY_THROW((void)cfg.getBoolean(""));
+        EXPECT_ANY_THROW((void)cfg.getBoolean(confetti::ConfigPath{}));
         EXPECT_ANY_THROW((void)cfg.getBoolean(0));
         EXPECT_ANY_THROW((void)cfg.getDouble(""));
         EXPECT_ANY_THROW((void)cfg.getDouble(0));
@@ -152,6 +171,16 @@ TEST(ConfigTree, EmptySourceGetters)
         EXPECT_ANY_THROW((void)cfg.template get<double>(0));
         EXPECT_ANY_THROW((void)cfg.template get<std::string>(""));
         EXPECT_ANY_THROW((void)cfg.template get<std::string>(0));
+
+        EXPECT_EQ(1945, cfg.template get("", 1945));
+        EXPECT_EQ("lol", cfg.template get<std::string>("", "lol"));
+        EXPECT_EQ("callable", cfg.template get<std::string>("", [] { return "callable"; }));
+
+        EXPECT_EQ(1945, cfg.template get(confetti::ConfigPath{}, 1945));
+        EXPECT_EQ("lol", cfg.template get<std::string>(confetti::ConfigPath{}, "lol"));
+        EXPECT_EQ("callable",
+            cfg.template get<std::string>(confetti::ConfigPath{}, [] { return "callable"; }));
+
         for (auto n : cfg.template values<int>()) {
             ADD_FAILURE() << n;
         }
@@ -202,7 +231,7 @@ TEST(ConfigTree, FullSource)
 TEST(ConfigTree, ConfigValue)
 {
     confetti::ConfigTree cfg{std::make_shared<FullSource>()};
-    const auto value = cfg.get("");
+    const auto value = cfg.get(confetti::ConfigPath{""});
     {
         double v = value;
         EXPECT_DOUBLE_EQ(19.86, v);
@@ -216,11 +245,6 @@ TEST(ConfigTree, ConfigValue)
 
     std::optional<double> x = cfg.get("");
     EXPECT_TRUE(x.has_value());
-}
-
-static decltype(auto) loadLuaFile()
-{
-    return confetti::ConfigTree::loadLuaFile(CONFETTI_SOURCE_DIR "/confetti/config_tree_test.lua");
 }
 
 TEST(ConfigTree, LuaLoadFile) { ASSERT_TRUE(loadLuaFile()); }
@@ -239,7 +263,7 @@ TEST(ConfigTree, LuaStringArray)
 {
     static const char* values[] = {"Moscow", "never", "sleeps"};
 
-    auto list = loadLuaFile()["string_list"];
+    auto list = loadLuaFile()[confetti::ConfigPath{"string_list"}];
 
     for (int i = 0; i < static_cast<int>(std::size(values)); ++i) {
         EXPECT_EQ(values[i], list.at<std::string>(i));
@@ -252,20 +276,6 @@ TEST(ConfigTree, LuaStringArray)
     }
     EXPECT_EQ(std::size(values), i);
 }
-
-namespace {
-
-template <typename T>
-class ConfigTreeNumeric : public testing::Test {
-protected:
-    static constexpr T values[] = {T{1962}, T{1968}, T{1986}, T{2021}};
-};
-
-using NumericTestingTypes = testing::Types<int32_t, int64_t, uint32_t, uint64_t>;
-
-TYPED_TEST_SUITE(ConfigTreeNumeric, NumericTestingTypes);
-
-} // namespace
 
 TYPED_TEST(ConfigTreeNumeric, LuaArray)
 {
@@ -281,4 +291,50 @@ TYPED_TEST(ConfigTreeNumeric, LuaArray)
         ++i;
     }
     EXPECT_EQ(std::size(TestFixture::values), i);
+}
+
+TEST(ConfigTree, LuaSimpleStringMatrixIteration)
+{
+    auto matrix = loadLuaFile()["string_matrix_array"];
+    size_t total_entries = 0;
+    for (auto entry : matrix.children()) {
+        size_t entries = 0;
+        for (auto child : entry.children()) {
+            std::vector<std::string> array = child.values<std::string>();
+            if (entries % 2) {
+                EXPECT_THAT(array, testing::ElementsAre("Lots", "of", "guns", "!"));
+            } else {
+                EXPECT_THAT(array, testing::ElementsAre("We", "need", "guns."));
+            }
+            ++entries;
+        }
+        EXPECT_EQ(2, entries);
+        total_entries += entries;
+    }
+    EXPECT_EQ(4, total_entries);
+}
+
+TEST(ConfigTree, LuaRootConfigCountChildren)
+{
+    auto cfg = loadLuaFile();
+    size_t count = 0;
+    for ([[maybe_unused]] auto c : cfg.children()) {
+        ++count;
+    }
+    EXPECT_EQ(0, count);
+}
+
+TEST(ConfigTree, ReachStraightIntoSubtree)
+{
+    auto cfg = loadLuaFile();
+
+    EXPECT_EQ("NJ", cfg.get<std::string>("a.b.c.state"));
+    EXPECT_EQ(2018, cfg.get<int>("a.b.c.year"));
+
+    EXPECT_TRUE(cfg.tryGetChild(confetti::ConfigPath{"a.b"}));
+    EXPECT_TRUE(cfg.tryGetChild(confetti::ConfigPath{"a/b\\c"}));
+    EXPECT_FALSE(cfg.tryGetChild(confetti::ConfigPath{"a/b/c/this_node_should_not_exist"}));
+
+    EXPECT_EQ("CT", cfg.get<std::string>(confetti::ConfigPath{"a.b/c\\state"}));
+    EXPECT_EQ(2021, cfg.get<int>(confetti::ConfigPath{"a/b\\c.year"}));
 }

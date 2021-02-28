@@ -28,6 +28,8 @@ extern "C" {
 #include <cstring>
 #include <string>
 
+#include <alloca.h>
+
 namespace confetti::internal {
 
 static bool strCaseEquals(std::string_view lhs, std::string_view rhs) noexcept
@@ -199,7 +201,17 @@ int LuaSource::getField(int index) const noexcept { return invoke(lua_geti(ref_,
 
 int LuaSource::getField(std::string_view name) const noexcept
 {
-    return invoke(lua_getfield(ref_, -1, name.data()));
+#if defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Walloca"
+#endif
+    auto field_name = static_cast<char*>(alloca(name.size() + 1));
+#if defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#endif
+    std::memcpy(field_name, name.data(), name.size());
+    field_name[name.size()] = '\0';
+    return invoke(lua_getfield(ref_, -1, field_name));
 }
 
 bool LuaSource::hasValueAt(int index) const
@@ -236,7 +248,7 @@ std::optional<bool> LuaSource::tryConvertToBoolean(int type) const
                     char* end_ptr{};
                     const auto n = std::strtod(data, &end_ptr);
                     result.emplace(
-                        (end_ptr && *end_ptr == '\0' && errno == 0) ? static_cast<bool>(n) : false);
+                        (end_ptr && *end_ptr == '\0' && errno == 0) && static_cast<bool>(n));
                 }
             }
             break;
