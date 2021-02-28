@@ -21,11 +21,49 @@
 #include "internal/type_traits.hh"
 #include <compare>
 #include <filesystem>
+#include <tuple>
+#include <vector>
 
 namespace confetti {
 
+class ConfigTree;
+
 template <typename T>
 class ConfigValue;
+
+class ConfigPath final {
+public:
+    [[nodiscard]] static constexpr std::string_view getDefaultSeaparators() noexcept
+    {
+        return "/.\\";
+    }
+
+    constexpr ConfigPath()
+        : path_{}
+        , sep_{getDefaultSeaparators()}
+    {
+    }
+
+    explicit constexpr ConfigPath(
+        std::string_view path, std::string_view separators = getDefaultSeaparators()) noexcept
+        : path_{path}
+        , sep_{separators}
+    {
+    }
+
+    [[nodiscard]] ConfigTree getChildNode(ConfigTree tree) const;
+
+    [[nodiscard]] std::tuple<ConfigTree, std::string_view> getValueNode(ConfigTree tree) const;
+
+    [[nodiscard]] constexpr std::string_view getPathString() const noexcept { return path_; }
+
+private:
+    template <typename R, typename C>
+    [[nodiscard]] R findNodeImpl(ConfigTree tree, const C& handler) const;
+
+    std::string_view path_;
+    std::string_view sep_;
+};
 
 class ConfigTree final {
 public:
@@ -33,9 +71,9 @@ public:
     };
 
     template <typename T>
-    class Iterator final {
+    class ValueIterator final {
     public:
-        explicit Iterator(const ConfigTree& tree) noexcept
+        explicit ValueIterator(const ConfigTree& tree) noexcept
             : tree_{&tree}
             , index_{0}
         {
@@ -46,7 +84,7 @@ public:
             return tree_->source_ && tree_->source_->hasValueAt(index_);
         }
 
-        Iterator& operator++()
+        ValueIterator& operator++()
         {
             ++index_;
             return *this;
@@ -59,20 +97,32 @@ public:
         int index_;
     };
 
-    template <typename T>
-    class Range {
+    class ChildIterator;
+
+    template <typename IteratorType>
+    class Range final {
     public:
-        explicit Range(Iterator<T> it) noexcept
-            : it_{it}
+        explicit Range(IteratorType it) noexcept
+            : it_{std::move(it)}
         {
         }
 
-        Iterator<T> begin() const noexcept { return it_; }
+        [[nodiscard]] IteratorType begin() const noexcept { return it_; }
 
         static constexpr auto end() noexcept { return EndIterator{}; }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
+        operator std::vector<decltype(*std::declval<IteratorType>())>() const
+        {
+            std::vector<decltype(*std::declval<IteratorType>())> result;
+            for (auto it = begin(); it != end(); ++it) {
+                result.emplace_back(*it);
+            }
+            return result;
+        }
+
     private:
-        Iterator<T> it_;
+        IteratorType it_;
     };
 
     ConfigTree() noexcept = default;
@@ -104,6 +154,11 @@ public:
         if (source_)
             result = source_->tryGetChild(key);
         return ConfigTree{std::move(result)};
+    }
+
+    [[nodiscard]] ConfigTree tryGetChild(const ConfigPath& path) const
+    {
+        return path.getChildNode(*this);
     }
 
     template <typename K>
@@ -215,12 +270,42 @@ public:
 #endif
     }
 
+    template <typename T>
+    [[nodiscard]] std::optional<T> tryGet(const ConfigPath& path) const
+    {
+        auto [tree, key] = path.getValueNode(*this);
+        return tree.tryGet<T>(key);
+    }
+
     template <typename T, typename K>
     [[nodiscard]] T get(K key) const
     {
         auto result = tryGet<T>(key);
         if (!result.has_value())
             noSuchKey(key);
+        return *std::move(result);
+    }
+
+    template <typename T, typename K>
+    [[nodiscard]] T get(K key, T&& default_value) const
+    {
+        auto result = tryGet<T>(key);
+        if (!result.has_value())
+            return std::forward<T>(default_value);
+        return *std::move(result);
+    }
+
+    template <typename T, typename K, typename U>
+    [[nodiscard]] T get(K key, U&& default_value) const
+    {
+        auto result = tryGet<T>(key);
+        if (!result.has_value()) {
+            if constexpr (std::is_invocable<U>::value) {
+                return default_value();
+            } else {
+                return std::forward<U>(default_value);
+            }
+        }
         return *std::move(result);
     }
 
@@ -231,14 +316,18 @@ public:
     }
 
     template <typename T>
-    Range<T> values() const
+    [[nodiscard]] decltype(auto) values() const
     {
-        return Range<T>{Iterator<T>{*this}};
+        return Range<ValueIterator<T>>{ValueIterator<T>{*this}};
     }
+
+    [[nodiscard]] decltype(auto) children() const;
 
     [[nodiscard]] ConfigValue<int> get(int index) const;
 
     [[nodiscard]] ConfigValue<std::string> get(std::string_view name) const;
+
+    [[nodiscard]] ConfigValue<std::string> get(const ConfigPath& path) const;
 
     [[nodiscard]] static ConfigTree loadLuaFile(const std::filesystem::path& file);
 
@@ -256,13 +345,28 @@ private:
         return source_ ? (source_.get()->*getter)(key) : R{};
     }
 
+    template <typename R>
+    [[nodiscard]] R tryGet(
+        R (ConfigSource::*getter)(std::string_view) const, const ConfigPath& path) const
+    {
+        auto [tree, key] = path.getValueNode(*this);
+        return tree.source_ ? (tree.source_.get()->*getter)(key) : R{};
+    }
+
     [[noreturn]] static void noSuchChild(int index);
 
     [[noreturn]] static void noSuchChild(std::string_view name);
 
+    [[noreturn]] static void noSuchChild(const ConfigPath& path)
+    {
+        noSuchChild(path.getPathString());
+    }
+
     [[noreturn]] static void noSuchKey(int index);
 
     [[noreturn]] static void noSuchKey(std::string_view name);
+
+    [[noreturn]] static void noSuchKey(const ConfigPath& path) { noSuchKey(path.getPathString()); }
 
     ConfigSourcePointer source_;
 };
@@ -309,6 +413,72 @@ inline ConfigValue<int> ConfigTree::get(int index) const { return ConfigValue<in
 inline ConfigValue<std::string> ConfigTree::get(std::string_view name) const
 {
     return ConfigValue<std::string>{*this, name};
+}
+
+inline ConfigValue<std::string> ConfigTree::get(const ConfigPath& path) const
+{
+    auto [tree, key] = path.getValueNode(*this);
+    return tree.get(key);
+}
+
+class ConfigTree::ChildIterator final {
+public:
+    explicit ChildIterator(const ConfigTree& tree) noexcept
+        : tree_{&tree}
+        , child_{tree_->tryGetChild(0)}
+        , index_{1}
+    {
+    }
+
+    bool operator!=(EndIterator) const noexcept { return static_cast<bool>(child_); }
+
+    ChildIterator& operator++()
+    {
+        child_ = tree_->tryGetChild(index_++);
+        return *this;
+    }
+
+    decltype(auto) operator*() const { return child_; }
+
+private:
+    const ConfigTree* tree_;
+    ConfigTree child_;
+    int index_;
+};
+
+inline decltype(auto) ConfigTree::children() const
+{
+    return Range<ChildIterator>{ChildIterator{*this}};
+}
+
+template <typename R, typename C>
+inline R ConfigPath::findNodeImpl(ConfigTree tree, const C& handler) const
+{
+    std::string_view::size_type begin = 0;
+    for (;;) {
+        const auto end = path_.find_first_of(sep_, begin);
+        if (end == std::string_view::npos)
+            return handler(std::move(tree), path_.substr(begin));
+        tree = tree.tryGetChild(path_.substr(begin, end - begin));
+        if (!tree)
+            break;
+        begin = end + 1;
+    }
+    return {};
+}
+
+inline std::tuple<ConfigTree, std::string_view> ConfigPath::getValueNode(ConfigTree tree) const
+{
+    return findNodeImpl<std::tuple<ConfigTree, std::string_view>>(std::move(tree),
+        [](auto node, auto key) noexcept -> std::tuple<ConfigTree, std::string_view> {
+            return {std::move(node), key};
+        });
+}
+
+inline ConfigTree ConfigPath::getChildNode(ConfigTree tree) const
+{
+    return findNodeImpl<ConfigTree>(std::move(tree),
+        [](auto node, auto key) noexcept { return std::move(node).tryGetChild(key); });
 }
 
 } // namespace confetti

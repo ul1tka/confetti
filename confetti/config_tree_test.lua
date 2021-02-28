@@ -19,3 +19,25 @@ local cfg = Confetti
 cfg.empty_list = {}
 cfg.string_list = { "Moscow", "never", "sleeps" }
 cfg.number_list = { 1962, 1968, 1986, 2021 }
+cfg.string_matrix_array = {
+    {
+        { "We", "need", "guns." },
+        { "Lots", "of", "guns", '!' }
+    },
+    {
+        { "We", "need", "guns." },
+        { "Lots", "of", "guns", '!' }
+    }
+}
+
+cfg["a.b.c.state"] = "NJ"
+cfg["a.b.c.year"] = "2018"
+
+cfg.a = {
+    b = {
+        c = {
+            state = "CT",
+            year = 2021
+        }
+    }
+}
