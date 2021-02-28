@@ -106,6 +106,7 @@ TEST(LuaTree, Boolean)
     EXPECT_FALSE(source->tryGetBoolean("simple_no").value());
     EXPECT_TRUE(source->tryGetBoolean("simple_number").value());
     EXPECT_TRUE(source->tryGetBoolean("simple_double_number").value());
+    EXPECT_TRUE(source->tryGetBoolean("simple_double_string").value());
     EXPECT_FALSE(source->tryGetBoolean("simple_zero").value());
     EXPECT_FALSE(source->tryGetBoolean("simple_string").value());
 }

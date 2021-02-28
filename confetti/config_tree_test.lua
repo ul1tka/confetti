@@ -16,5 +16,6 @@
 
 local cfg = Confetti
 
+cfg.empty_list = {}
 cfg.string_list = { "Moscow", "never", "sleeps" }
 cfg.number_list = { 1962, 1968, 1986, 2021 }

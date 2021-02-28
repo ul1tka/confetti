@@ -50,7 +50,7 @@ struct EmptySource final : confetti::ConfigSource {
 struct FullSource final : confetti::ConfigSource {
     ~FullSource() override = default;
 
-    [[nodiscard]] bool hasValueAt(int) const override { return true; }
+    [[nodiscard]] bool hasValueAt(int) const override { return false; }
 
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(int) const override
     {
@@ -124,20 +124,37 @@ TEST(ConfigTree, EmptyTree)
 TEST(ConfigTree, EmptySourceGetters)
 {
     auto check = [&](auto&& cfg) {
+        EXPECT_FALSE(cfg.tryGetChild(0));
         EXPECT_FALSE(cfg.tryGetChild(""));
+        EXPECT_FALSE(cfg.tryGetBoolean(0));
         EXPECT_FALSE(cfg.tryGetBoolean(""));
+        EXPECT_FALSE(cfg.tryGetDouble(0));
         EXPECT_FALSE(cfg.tryGetDouble(""));
+        EXPECT_FALSE(cfg.tryGetString(0));
         EXPECT_FALSE(cfg.tryGetString(""));
         EXPECT_FALSE(cfg.template tryGet<bool>(""));
+        EXPECT_FALSE(cfg.template tryGet<bool>(0));
         EXPECT_FALSE(cfg.template tryGet<double>(""));
+        EXPECT_FALSE(cfg.template tryGet<double>(0));
         EXPECT_FALSE(cfg.template tryGet<std::string>(""));
+        EXPECT_FALSE(cfg.template tryGet<std::string>(0));
         EXPECT_ANY_THROW((void)cfg.getChild(""));
+        EXPECT_ANY_THROW((void)cfg.getChild(0));
         EXPECT_ANY_THROW((void)cfg.getBoolean(""));
+        EXPECT_ANY_THROW((void)cfg.getBoolean(0));
         EXPECT_ANY_THROW((void)cfg.getDouble(""));
+        EXPECT_ANY_THROW((void)cfg.getDouble(0));
         EXPECT_ANY_THROW((void)cfg.getString(""));
+        EXPECT_ANY_THROW((void)cfg.getString(0));
         EXPECT_ANY_THROW((void)cfg.template get<bool>(""));
+        EXPECT_ANY_THROW((void)cfg.template get<bool>(0));
         EXPECT_ANY_THROW((void)cfg.template get<double>(""));
+        EXPECT_ANY_THROW((void)cfg.template get<double>(0));
         EXPECT_ANY_THROW((void)cfg.template get<std::string>(""));
+        EXPECT_ANY_THROW((void)cfg.template get<std::string>(0));
+        for (auto n : cfg.template values<int>()) {
+            ADD_FAILURE() << n;
+        }
     };
     check(confetti::ConfigTree{});
     check(confetti::ConfigTree{std::make_shared<EmptySource>()});
@@ -176,6 +193,10 @@ TEST(ConfigTree, FullSource)
     EXPECT_TRUE(cfg.template get<double>(0));
     EXPECT_EQ("Hello!", cfg.template get<std::string>(""));
     EXPECT_EQ("Hello!", cfg.template get<std::string>(0));
+
+    for ([[maybe_unused]] auto n : cfg.values<int>()) {
+        ADD_FAILURE() << n;
+    }
 }
 
 TEST(ConfigTree, ConfigValue)
@@ -203,6 +224,16 @@ static decltype(auto) loadLuaFile()
 }
 
 TEST(ConfigTree, LuaLoadFile) { ASSERT_TRUE(loadLuaFile()); }
+
+TEST(ConfigTree, LuaEmptyArray)
+{
+    auto list = loadLuaFile()["empty_list"];
+    size_t count = 0;
+    for ([[maybe_unused]] auto n : list.values<int>()) {
+        ++count;
+    }
+    EXPECT_EQ(0, count);
+}
 
 TEST(ConfigTree, LuaStringArray)
 {
@@ -236,7 +267,7 @@ TYPED_TEST_SUITE(ConfigTreeNumeric, NumericTestingTypes);
 
 } // namespace
 
-TYPED_TEST(ConfigTreeNumeric, Array)
+TYPED_TEST(ConfigTreeNumeric, LuaArray)
 {
     auto list = loadLuaFile()["number_list"];
 

@@ -40,25 +40,28 @@ public:
 
     [[nodiscard]] confetti::ConfigSourcePointer tryGetChild(std::string_view) const override
     {
-        return {};
+        return tryGetChild(0);
     }
 
     [[nodiscard]] std::optional<bool> tryGetBoolean(int) const override { return {}; }
 
-    [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view) const override { return {}; }
+    [[nodiscard]] std::optional<bool> tryGetBoolean(std::string_view) const override
+    {
+        return tryGetBoolean(0);
+    }
 
-    [[nodiscard]] std::optional<double> tryGetDouble(int) const override { return {}; }
+    [[nodiscard]] std::optional<double> tryGetDouble(int) const override { return 19.86; }
 
     [[nodiscard]] std::optional<double> tryGetDouble(std::string_view) const override
     {
-        return 19.86;
+        return tryGetDouble(0);
     }
 
     [[nodiscard]] std::optional<std::string> tryGetString(int) const override { return {}; }
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view) const override
     {
-        return {};
+        return tryGetString(0);
     }
 };
 
@@ -67,6 +70,20 @@ public:
 TEST(ConfigSource, IntFromDouble)
 {
     Source source;
+    EXPECT_FALSE(source.hasValueAt(0));
+
+    EXPECT_FALSE(source.tryGetChild(0));
+    EXPECT_FALSE(source.tryGetChild(""));
+
+    EXPECT_FALSE(source.tryGetBoolean(0).has_value());
+    EXPECT_FALSE(source.tryGetBoolean("").has_value());
+
+    EXPECT_DOUBLE_EQ(19.86, source.tryGetDouble(0).value());
+    EXPECT_DOUBLE_EQ(19.86, source.tryGetDouble("").value());
+
+    EXPECT_FALSE(source.tryGetString(0).has_value());
+    EXPECT_FALSE(source.tryGetString("").has_value());
+
     EXPECT_EQ(20, source.tryGetNumber("").value());
     EXPECT_EQ(20, source.tryGetUnsignedNumber("").value());
 }
