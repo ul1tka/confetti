@@ -34,95 +34,24 @@ endif ()
 include(FetchContent)
 
 #
-# Lua (https://github.com/lua/lua)
+# Lua (https://www.lua.org/)
 #
 
-FetchContent_Declare(
-        lua
-        GIT_REPOSITORY https://github.com/lua/lua.git
-        GIT_TAG v5.4.2
-)
+find_package(Lua51 REQUIRED)
 
-FetchContent_GetProperties(lua)
+message(STATUS "Lua Headers   : ${LUA_INCLUDE_DIR}")
+message(STATUS "Lua Libraries : ${LUA_LIBRARIES}")
 
-if (NOT lua_POPULATED)
-    FetchContent_Populate(lua)
-    add_library(
-            lua
-            ${lua_SOURCE_DIR}/lapi.c
-            ${lua_SOURCE_DIR}/lcorolib.c
-            ${lua_SOURCE_DIR}/ldo.c
-            ${lua_SOURCE_DIR}/linit.c
-            ${lua_SOURCE_DIR}/lmem.c
-            ${lua_SOURCE_DIR}/loslib.c
-            ${lua_SOURCE_DIR}/lstrlib.c
-            ${lua_SOURCE_DIR}/ltm.c
-            ${lua_SOURCE_DIR}/lvm.c
-            ${lua_SOURCE_DIR}/lauxlib.c
-            ${lua_SOURCE_DIR}/lctype.c
-            ${lua_SOURCE_DIR}/ldump.c
-            ${lua_SOURCE_DIR}/liolib.c
-            ${lua_SOURCE_DIR}/loadlib.c
-            ${lua_SOURCE_DIR}/lparser.c
-            ${lua_SOURCE_DIR}/ltable.c
-            ${lua_SOURCE_DIR}/lzio.c
-            ${lua_SOURCE_DIR}/lbaselib.c
-            ${lua_SOURCE_DIR}/ldblib.c
-            ${lua_SOURCE_DIR}/lfunc.c
-            ${lua_SOURCE_DIR}/llex.c
-            ${lua_SOURCE_DIR}/lobject.c
-            ${lua_SOURCE_DIR}/lstate.c
-            ${lua_SOURCE_DIR}/ltablib.c
-            ${lua_SOURCE_DIR}/lundump.c
-            ${lua_SOURCE_DIR}/lcode.c
-            ${lua_SOURCE_DIR}/ldebug.c
-            ${lua_SOURCE_DIR}/lgc.c
-            ${lua_SOURCE_DIR}/lmathlib.c
-            ${lua_SOURCE_DIR}/lopcodes.c
-            ${lua_SOURCE_DIR}/lstring.c
-            ${lua_SOURCE_DIR}/ltests.c
-            ${lua_SOURCE_DIR}/lutf8lib.c
-    )
-    target_compile_options(
-            lua
-            PRIVATE
-            -mtune=native
-            -march=native
-    )
-    target_include_directories(lua SYSTEM INTERFACE ${lua_SOURCE_DIR})
-
-    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        target_link_libraries(lua PRIVATE dl m)
-    endif ()
-
-    add_executable(lua-interpreter ${lua_SOURCE_DIR}/lua.c)
-    set_target_properties(lua-interpreter PROPERTIES OUTPUT_NAME "lua")
-    target_link_libraries(lua-interpreter lua)
+if ("${LUA_LIBRARIES}" MATCHES "(.*).a$")
+    add_library(lua STATIC IMPORTED)
+else ()
+    add_library(lua SHARED IMPORTED)
 endif ()
-
-#
-# Google Benchmark (https://github.com/google/benchmark)
-#
-
-FetchContent_Declare(
-        benchmark
-        GIT_REPOSITORY https://github.com/google/benchmark.git
-        GIT_TAG v1.5.2
-)
-
-FetchContent_GetProperties(benchmark)
-
-if (NOT benchmark_POPULATED)
-    FetchContent_Populate(benchmark)
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Enable testing of the benchmark library." FORCE)
-    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL
-        "Enable building the unit tests which depend on gtest" FORCE)
-    add_subdirectory(${benchmark_SOURCE_DIR} ${benchmark_BINARY_DIR})
+set_target_properties(lua PROPERTIES IMPORTED_LOCATION ${LUA_LIBRARIES})
+target_include_directories(lua SYSTEM INTERFACE ${LUA_INCLUDE_DIR})
+if (APPLE)
+    target_compile_options(lua INTERFACE -Wno-poison-system-directories)
 endif ()
-
-get_target_property(BENCHMARK_INCLUDE_DIRECTORIES benchmark INTERFACE_INCLUDE_DIRECTORIES)
-set_target_properties(benchmark PROPERTIES
-                      INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${BENCHMARK_INCLUDE_DIRECTORIES}")
 
 #
 # Google Test (https://github.com/google/googletest)
@@ -164,6 +93,10 @@ add_library(
 )
 
 target_link_libraries(confetti PUBLIC lua)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(confetti PRIVATE dl m)
+endif ()
 
 target_include_directories(
         confetti
