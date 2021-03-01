@@ -239,8 +239,8 @@ public:
     template <typename T, typename K>
     [[nodiscard]] std::optional<T> tryGet(K key) const
     {
-        static_assert(internal::is_any_of_v<T, std::string, bool, double, int32_t, uint32_t,
-                          int64_t, uint64_t>,
+        static_assert(internal::is_any_of_v<T, std::string, bool, double, int16_t, uint16_t,
+                          int32_t, uint32_t, int64_t, uint64_t>,
             "Type not supported");
         if (source_) {
             if constexpr (std::is_same_v<T, std::string>) {
@@ -249,9 +249,9 @@ public:
                 return source_->tryGetBoolean(key);
             } else if constexpr (std::is_same_v<T, double>) {
                 return source_->tryGetDouble(key);
-            } else if constexpr (internal::is_any_of_v<T, int32_t, int64_t>) {
+            } else if constexpr (internal::is_any_of_v<T, int16_t, int32_t, int64_t>) {
                 return source_->tryGetNumber(key);
-            } else if constexpr (internal::is_any_of_v<T, uint32_t, uint64_t>) {
+            } else if constexpr (internal::is_any_of_v<T, uint16_t, uint32_t, uint64_t>) {
                 return source_->tryGetUnsignedNumber(key);
             }
         }
@@ -330,6 +330,10 @@ public:
     [[nodiscard]] ConfigValue<std::string> get(const ConfigPath& path) const;
 
     [[nodiscard]] static ConfigTree loadLuaFile(const std::filesystem::path& file);
+
+    [[nodiscard]] static ConfigTree loadIniFile(const std::filesystem::path& file);
+
+    [[nodiscard]] static ConfigTree loadFile(const std::filesystem::path& file);
 
 private:
     template <typename R>
@@ -480,6 +484,15 @@ inline ConfigTree ConfigPath::getChildNode(ConfigTree tree) const
     return findNodeImpl<ConfigTree>(std::move(tree),
         [](auto node, auto key) noexcept { return std::move(node).tryGetChild(key); });
 }
+
+namespace literals {
+
+inline ConfigPath operator""_cp(const char* data, size_t size) noexcept
+{
+    return ConfigPath{std::string_view{data, size}};
+}
+
+} // namespace literals
 
 } // namespace confetti
 

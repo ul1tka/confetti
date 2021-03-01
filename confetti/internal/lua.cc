@@ -15,6 +15,7 @@
 //
 
 #include "lua.hh"
+#include "string.hh"
 
 extern "C" {
 #include <lauxlib.h>
@@ -23,7 +24,6 @@ extern "C" {
 }
 
 #include <cassert>
-#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -31,18 +31,6 @@ extern "C" {
 #include <alloca.h>
 
 namespace confetti::internal {
-
-static bool strCaseEquals(std::string_view lhs, std::string_view rhs) noexcept
-{
-    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
-        [](auto x, auto y) noexcept { return std::tolower(x) == std::tolower(y); });
-}
-
-template <typename... T>
-static bool strCaseAnyOf(std::string_view lhs, T... rhs) noexcept
-{
-    return (strCaseEquals(lhs, rhs) || ...);
-}
 
 LuaException::LuaException(const char* message)
     : std::runtime_error{message}
@@ -66,19 +54,8 @@ LuaState::LuaState()
 {
     if (!state_)
         LuaException::raise("Cannot create Lua stack");
-
     lua_atpanic(state_, &on_lua_panic);
-
-    luaopen_base(state_);
-    luaopen_coroutine(state_);
-    luaopen_table(state_);
-    luaopen_io(state_);
-    luaopen_os(state_);
-    luaopen_string(state_);
-    luaopen_utf8(state_);
-    luaopen_math(state_);
-    luaopen_debug(state_);
-    luaopen_package(state_);
+    luaL_openlibs(state_);
 }
 
 LuaState::~LuaState() { close(); }
@@ -116,13 +93,13 @@ void LuaState::run()
     lua_pop(state_, lua_gettop(state_));
 }
 
-void LuaState::runFile(const std::filesystem::path& file)
+void LuaState::run(const std::filesystem::path& file)
 {
     check(luaL_loadfile(state_, file.native().c_str()));
     run();
 }
 
-void LuaState::runCode(std::string_view code)
+void LuaState::run(std::string_view code)
 {
     const auto address = std::to_string(reinterpret_cast<std::ptrdiff_t>(code.data()));
     check(luaL_loadbuffer(state_, code.data(), code.size(), address.c_str()));
@@ -239,9 +216,9 @@ std::optional<bool> LuaSource::tryConvertToBoolean(int type) const
             size_t size{};
             if (auto data = lua_tolstring(ref_, -1, &size)) {
                 std::string_view value{data, size};
-                if (strCaseAnyOf(value, "y", "yes", "true", "1")) {
+                if (strCaseIsAnyOf(value, "y", "yes", "true", "1")) {
                     result.emplace(true);
-                } else if (strCaseAnyOf(value, "n", "no", "false", "0")) {
+                } else if (strCaseIsAnyOf(value, "n", "no", "false", "0")) {
                     result.emplace(false);
                 } else {
                     errno = 0;
@@ -382,15 +359,20 @@ ConfigSourcePointer LuaSource::tryGetChild(std::string_view name) const
     return tryConvertToChild(getField(name));
 }
 
-ConfigSourcePointer LuaSource::loadFile(const std::filesystem::path& file)
+template <typename T>
+ConfigSourcePointer LuaSource::load(const T& source)
 {
     LuaReference ref;
     lua_newtable(ref);
     lua_pushvalue(ref, -1);
-    lua_setglobal(ref, "Confetti");
+    lua_setglobal(ref, "confetti");
     ref.set();
-    ref->runFile(file);
+    ref->run(source);
     return std::make_shared<LuaSource>(SharedConstructTag{}, std::move(ref));
 }
+
+ConfigSourcePointer LuaSource::loadCode(std::string_view code) { return load(code); }
+
+ConfigSourcePointer LuaSource::loadFile(const std::filesystem::path& file) { return load(file); }
 
 } // namespace confetti::internal

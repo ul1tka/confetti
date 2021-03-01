@@ -96,7 +96,12 @@ TYPED_TEST_SUITE(ConfigTreeNumeric, NumericTestingTypes);
 
 decltype(auto) loadLuaFile()
 {
-    return confetti::ConfigTree::loadLuaFile(CONFETTI_SOURCE_DIR "/confetti/config_tree_test.lua");
+    return confetti::ConfigTree::loadFile(CONFETTI_SOURCE_DIR "/confetti/config_tree_test.lua");
+}
+
+decltype(auto) loadIniFile()
+{
+    return confetti::ConfigTree::loadFile(CONFETTI_SOURCE_DIR "/confetti/config_tree_test.ini");
 }
 
 } // namespace
@@ -338,3 +343,29 @@ TEST(ConfigTree, ReachStraightIntoSubtree)
     EXPECT_EQ("CT", cfg.get<std::string>(confetti::ConfigPath{"a.b/c\\state"}));
     EXPECT_EQ(2021, cfg.get<int>(confetti::ConfigPath{"a/b\\c.year"}));
 }
+
+static void checkIniFileConfig(const confetti::ConfigTree& cfg)
+{
+    using namespace confetti::literals;
+
+    EXPECT_EQ("World", cfg.get<std::string>("Hello"));
+
+    EXPECT_EQ("User Name", cfg.get<std::string>("user.name"_cp));
+    EXPECT_EQ("User Name", cfg["user"].get<std::string>("name"));
+
+    EXPECT_EQ("info@example.com", cfg.get<std::string>("user.email"_cp));
+    EXPECT_EQ("info@example.com", cfg["user"].get<std::string>("email"));
+
+    EXPECT_EQ("127.0.0.1", cfg.get<std::string>("web.server"_cp));
+    EXPECT_EQ("127.0.0.1", cfg["web"].get<std::string>("server"));
+
+    EXPECT_EQ(80, cfg.get<unsigned short>("web.port"_cp));
+    EXPECT_EQ(80, cfg["web"].get<unsigned short>("port"));
+
+    EXPECT_EQ("index.html", cfg.get<std::string>("web.file"_cp));
+    EXPECT_EQ("index.html", cfg["web"].get<std::string>("file"));
+}
+
+TEST(ConfigTree, LuaLoadIniFile) { checkIniFileConfig(loadLuaFile()["ini"]); }
+
+TEST(ConfigTree, LoadIniFile) { checkIniFileConfig(loadIniFile()); }

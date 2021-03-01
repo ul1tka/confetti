@@ -16,7 +16,7 @@
 
 print("Configuring the application...")
 
-local cfg = Confetti
+local cfg = confetti
 
 cfg.simple_string = "Hello, Lua!"
 cfg.simple_number = 12345

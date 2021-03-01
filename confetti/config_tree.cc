@@ -16,6 +16,7 @@
 
 #include "config_tree.hh"
 #include "internal/lua.hh"
+#include "internal/string.hh"
 #include <stdexcept>
 
 namespace confetti {
@@ -45,6 +46,26 @@ void ConfigTree::noSuchKey(std::string_view name)
 ConfigTree ConfigTree::loadLuaFile(const std::filesystem::path& file)
 {
     return ConfigTree{internal::LuaSource::loadFile(file)};
+}
+
+ConfigTree ConfigTree::loadIniFile(const std::filesystem::path& file)
+{
+    auto code = std::string{"local ini = require 'ini'\n"
+                            "for k, v in pairs(ini.parse_file('"}
+                    .append(file.native())
+                    .append("')) do confetti[k] = v end\n");
+    return ConfigTree{internal::LuaSource::loadCode(code)};
+}
+
+ConfigTree ConfigTree::loadFile(const std::filesystem::path& file)
+{
+    const auto extension = file.extension().native();
+    if (internal::strCaseEq(extension, ".lua")) {
+        return loadLuaFile(file);
+    } else if (internal::strCaseEq(extension, ".ini")) {
+        return loadIniFile(file);
+    }
+    throw std::runtime_error{"Unknown configuration file type: " + file.native()};
 }
 
 } // namespace confetti
