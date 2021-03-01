@@ -57,9 +57,9 @@ public:
 
     void check(int result) const;
 
-    void runFile(const std::filesystem::path& file);
+    void run(std::string_view code);
 
-    void runCode(std::string_view code);
+    void run(const std::filesystem::path& file);
 
 private:
     lua_State* state_;
@@ -116,6 +116,8 @@ private:
 
 class LuaSource final : public ConfigSource {
 public:
+    static ConfigSourcePointer loadCode(std::string_view code);
+
     static ConfigSourcePointer loadFile(const std::filesystem::path& file);
 
     ~LuaSource() override;
@@ -144,6 +146,9 @@ public:
 private:
     struct SharedConstructTag final {
     };
+
+    template <typename T>
+    static ConfigSourcePointer load(const T& source);
 
     [[nodiscard]] int invoke(int type) const;
 

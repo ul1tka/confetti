@@ -14,7 +14,7 @@
 -- limitations under the License.
 --
 
-local cfg = Confetti
+local cfg = confetti
 
 cfg.empty_list = {}
 cfg.string_list = { "Moscow", "never", "sleeps" }
@@ -41,3 +41,13 @@ cfg.a = {
         }
     }
 }
+
+--
+-- Parse INI file using ini.lua
+-- See https://github.com/lzubiaur/ini.lua
+--
+local ini = require 'ini'
+local path = require 'path'
+
+cfg.ini = ini.parse_file(path.dirname(
+        debug.getinfo(1).source:sub(2)) .. '/config_tree_test.ini')

@@ -43,6 +43,7 @@ export LUA_DIR="${PWD}/lua_install"
 
 export PATH="${LUA_DIR}/bin:${PATH}"
 
+luarocks install path
 luarocks install lpeg
 luarocks install busted
 

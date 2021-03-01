@@ -88,9 +88,10 @@ TEST(LuaState, Basic)
 
 TEST(LuaState, RunCode)
 {
+    using namespace std::literals;
     confetti::internal::LuaState state;
-    EXPECT_NO_THROW(state.runCode(R"!(print("Hello from Lua"))!"));
-    EXPECT_THROW(state.runCode(R"!(wrong syntax)!"), confetti::internal::LuaException);
+    EXPECT_NO_THROW(state.run(R"!(print("Hello from Lua"))!"sv));
+    EXPECT_THROW(state.run(R"!(wrong syntax)!"sv), confetti::internal::LuaException);
 }
 
 static decltype(auto) loadTestFile()
