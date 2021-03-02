@@ -50,10 +50,23 @@ ConfigTree ConfigTree::loadLuaFile(const std::filesystem::path& file)
 
 ConfigTree ConfigTree::loadIniFile(const std::filesystem::path& file)
 {
-    auto code = std::string{"local ini = require 'ini'\n"
-                            "for k, v in pairs(ini.parse_file('"}
-                    .append(file.native())
-                    .append("')) do confetti[k] = v end\n");
+    const auto code = std::string{"local ini = require 'ini'\n"
+                                  "for k, v in pairs(ini.parse_file('"}
+                          .append(file.native())
+                          .append("')) do confetti[k] = v end");
+    return ConfigTree{internal::LuaSource::loadCode(code)};
+}
+
+ConfigTree ConfigTree::loadJsonFile(const std::filesystem::path& file)
+{
+    const auto code = std::string{R"!(
+local json = require 'lunajson'
+local file = assert(io.open(")!"}
+                          .append(file.native())
+                          .append(R"!(", "r"))
+local content = file:read("*all")
+file:close()
+for k, v in pairs(json.decode(content)) do confetti[k] = v end)!");
     return ConfigTree{internal::LuaSource::loadCode(code)};
 }
 
@@ -62,6 +75,8 @@ ConfigTree ConfigTree::loadFile(const std::filesystem::path& file)
     const auto extension = file.extension().native();
     if (internal::strCaseEq(extension, ".lua")) {
         return loadLuaFile(file);
+    } else if (internal::strCaseEq(extension, ".json")) {
+        return loadJsonFile(file);
     } else if (internal::strCaseEq(extension, ".ini")) {
         return loadIniFile(file);
     }

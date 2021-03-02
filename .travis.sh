@@ -46,6 +46,7 @@ export PATH="${LUA_DIR}/bin:${PATH}"
 luarocks install path
 luarocks install lpeg
 luarocks install busted
+luarocks install lunajson
 
 wget https://raw.githubusercontent.com/lzubiaur/ini.lua/master/ini.lua \
     -O "${LUA_DIR}/share/lua/5.4/ini.lua"

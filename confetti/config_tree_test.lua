@@ -51,3 +51,15 @@ local path = require 'path'
 
 cfg.ini = ini.parse_file(path.dirname(
         debug.getinfo(1).source:sub(2)) .. '/config_tree_test.ini')
+
+--
+-- Parse JSON file using lunajson
+-- See https://github.com/grafi-tt/lunajson
+--
+local json = require 'lunajson'
+local file = assert(io.open(path.dirname(
+        debug.getinfo(1).source:sub(2)) ..
+        '/config_tree_test.json', "r"))
+local content = file:read("*all")
+file:close()
+cfg.json = json.decode(content)

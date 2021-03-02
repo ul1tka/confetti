@@ -1,0 +1,12 @@
+{
+  "Hello": "World",
+  "user": {
+    "name": "User Name",
+    "email": "info@example.com"
+  },
+  "web": {
+    "server": "127.0.0.1",
+    "port": 80,
+    "file": "index.html"
+  }
+}

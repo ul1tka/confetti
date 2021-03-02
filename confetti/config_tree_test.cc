@@ -104,6 +104,11 @@ decltype(auto) loadIniFile()
     return confetti::ConfigTree::loadFile(CONFETTI_SOURCE_DIR "/confetti/config_tree_test.ini");
 }
 
+decltype(auto) loadJsonFile()
+{
+    return confetti::ConfigTree::loadFile(CONFETTI_SOURCE_DIR "/confetti/config_tree_test.json");
+}
+
 } // namespace
 
 TEST(ConfigTree, EmptyTree)
@@ -368,4 +373,8 @@ static void checkIniFileConfig(const confetti::ConfigTree& cfg)
 
 TEST(ConfigTree, LuaLoadIniFile) { checkIniFileConfig(loadLuaFile()["ini"]); }
 
+TEST(ConfigTree, LuaLoadJsonFile) { checkIniFileConfig(loadLuaFile()["json"]); }
+
 TEST(ConfigTree, LoadIniFile) { checkIniFileConfig(loadIniFile()); }
+
+TEST(ConfigTree, LoadJsonFile) { checkIniFileConfig(loadJsonFile()); }
