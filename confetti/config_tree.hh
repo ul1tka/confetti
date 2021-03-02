@@ -331,6 +331,8 @@ public:
 
     [[nodiscard]] static ConfigTree loadLuaFile(const std::filesystem::path& file);
 
+    [[nodiscard]] static ConfigTree loadJsonFile(const std::filesystem::path& file);
+
     [[nodiscard]] static ConfigTree loadIniFile(const std::filesystem::path& file);
 
     [[nodiscard]] static ConfigTree loadFile(const std::filesystem::path& file);
