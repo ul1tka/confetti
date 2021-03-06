@@ -33,19 +33,19 @@ class ConfigValue;
 
 class ConfigPath final {
 public:
-    [[nodiscard]] static constexpr std::string_view getDefaultSeaparators() noexcept
+    [[nodiscard]] static constexpr std::string_view getDefaultSeparators() noexcept
     {
-        return "/.\\";
+        return "/\\.";
     }
 
     constexpr ConfigPath()
         : path_{}
-        , sep_{getDefaultSeaparators()}
+        , sep_{getDefaultSeparators()}
     {
     }
 
-    explicit constexpr ConfigPath(
-        std::string_view path, std::string_view separators = getDefaultSeaparators()) noexcept
+    constexpr explicit ConfigPath(
+        std::string_view path, std::string_view separators = getDefaultSeparators()) noexcept
         : path_{path}
         , sep_{separators}
     {
