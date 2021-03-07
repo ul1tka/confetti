@@ -16,6 +16,7 @@
 
 #include "config_tree.hh"
 #include <gmock/gmock.h>
+#include <sstream>
 
 namespace {
 
@@ -45,6 +46,8 @@ struct EmptySource final : confetti::ConfigSource {
     {
         return {};
     }
+
+    [[nodiscard]] std::vector<std::string> getKeyList() const override { return {}; }
 };
 
 struct FullSource final : confetti::ConfigSource {
@@ -82,6 +85,8 @@ struct FullSource final : confetti::ConfigSource {
     {
         return tryGetString(0);
     }
+
+    [[nodiscard]] std::vector<std::string> getKeyList() const override { return {}; }
 };
 
 template <typename T>
@@ -378,3 +383,58 @@ TEST(ConfigTree, LuaLoadJsonFile) { checkIniFileConfig(loadLuaFile()["json"]); }
 TEST(ConfigTree, LoadIniFile) { checkIniFileConfig(loadIniFile()); }
 
 TEST(ConfigTree, LoadJsonFile) { checkIniFileConfig(loadJsonFile()); }
+
+TEST(ConfigTree, SimpleLuaSequenceValue)
+{
+    static constexpr std::string_view code = R"(
+local n = 0
+confetti.sequence = function()
+    n = n + 1
+    return n
+end
+)";
+    auto tree = confetti::ConfigTree::loadLuaCode(code);
+    for (int i = 1; i <= 10; ++i) {
+        ASSERT_EQ(i, tree.get<int>("sequence"));
+    }
+}
+
+TEST(ConfigTree, KeyNotFoundErrorMessageIniSimple)
+{
+    auto user = loadIniFile()["user"];
+    for (auto key : {"mail", "nail"}) {
+        try {
+            (void)user.get<std::string>(key);
+            ADD_FAILURE() << "Expected exception was not thrown.";
+        } catch (const std::exception& e) {
+            std::ostringstream stream;
+            stream << "Cannot find configuration entry '" << key << "'. Did you mean 'email'?";
+            EXPECT_EQ(std::move(stream).str(), e.what());
+        }
+    }
+}
+
+TEST(ConfigTree, KeyNotFoundErrorMessageLuaSimple)
+{
+    try {
+        (void)loadLuaFile().get<std::string>("string_array");
+        ADD_FAILURE() << "Key should not have been found.";
+    } catch (const std::exception& e) {
+        EXPECT_STREQ(
+            "Cannot find configuration entry 'string_array'. Did you mean 'string_matrix_array'?",
+            e.what());
+    }
+}
+
+TEST(ConfigTree, KeyNotFoundInSubtreeErrorMessage)
+{
+    using namespace confetti::literals;
+    auto tree = loadLuaFile();
+    try {
+        (void)tree.get<std::string>("some/deep\\subtree.anothre_vaue"_cp);
+    } catch (const std::exception& e) {
+        EXPECT_STREQ(
+            "Cannot find configuration entry 'anothre_vaue'. Did you mean 'another_value'?",
+            e.what());
+    }
+}

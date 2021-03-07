@@ -93,6 +93,7 @@ add_library(
         confetti/config_source.cc
         confetti/config_tree.cc
         confetti/internal/lua.cc
+        confetti/internal/levenshtein.cc
 )
 
 target_link_libraries(confetti PUBLIC lua)
@@ -133,6 +134,7 @@ add_executable(
         confetti/config_source_test.cc
         confetti/config_tree_test.cc
         confetti/internal/lua_test.cc
+        confetti/internal/levenshtein_test.cc
 )
 
 target_link_libraries(test-confetti PRIVATE gtest gmock gtest_main confetti)

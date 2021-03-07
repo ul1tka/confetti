@@ -63,6 +63,8 @@ public:
     {
         return tryGetString(0);
     }
+
+    [[nodiscard]] std::vector<std::string> getKeyList() const override { return {}; }
 };
 
 }; // namespace
