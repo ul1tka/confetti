@@ -20,7 +20,7 @@ extern "C" {
 #include <lauxlib.h>
 }
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <memory>
 #include <type_traits>
 
@@ -98,6 +98,15 @@ static decltype(auto) loadTestFile()
 {
     return confetti::internal::LuaSource::loadFile(
         std::filesystem::path{CONFETTI_SOURCE_DIR "/confetti/internal/lua_test.lua"});
+}
+
+TEST(LuaTree, Keys)
+{
+    auto tree = loadTestFile();
+    auto userTree = tree->tryGetChild("user");
+    ASSERT_TRUE(userTree);
+    const auto keys = userTree->getKeyList();
+    EXPECT_THAT(keys, testing::UnorderedElementsAre("name", "email"));
 }
 
 TEST(LuaTree, Boolean)

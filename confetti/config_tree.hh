@@ -277,6 +277,13 @@ public:
         return tree.tryGet<T>(key);
     }
 
+    template <typename T>
+    [[nodiscard]] T get(const ConfigPath& path) const
+    {
+        auto [tree, key] = path.getValueNode(*this);
+        return tree.get<T>(key);
+    }
+
     template <typename T, typename K>
     [[nodiscard]] T get(K key) const
     {
@@ -329,6 +336,8 @@ public:
 
     [[nodiscard]] ConfigValue<std::string> get(const ConfigPath& path) const;
 
+    [[nodiscard]] static ConfigTree loadLuaCode(std::string_view code);
+
     [[nodiscard]] static ConfigTree loadLuaFile(const std::filesystem::path& file);
 
     [[nodiscard]] static ConfigTree loadJsonFile(const std::filesystem::path& file);
@@ -368,11 +377,11 @@ private:
         noSuchChild(path.getPathString());
     }
 
-    [[noreturn]] static void noSuchKey(int index);
+    [[noreturn]] void noSuchKey(int index) const;
 
-    [[noreturn]] static void noSuchKey(std::string_view name);
+    [[noreturn]] void noSuchKey(std::string_view name) const;
 
-    [[noreturn]] static void noSuchKey(const ConfigPath& path) { noSuchKey(path.getPathString()); }
+    [[noreturn]] void noSuchKey(const ConfigPath& path) const { noSuchKey(path.getPathString()); }
 
     ConfigSourcePointer source_;
 };
@@ -455,36 +464,6 @@ private:
 inline decltype(auto) ConfigTree::children() const
 {
     return Range<ChildIterator>{ChildIterator{*this}};
-}
-
-template <typename R, typename C>
-inline R ConfigPath::findNodeImpl(ConfigTree tree, const C& handler) const
-{
-    std::string_view::size_type begin = 0;
-    for (;;) {
-        const auto end = path_.find_first_of(sep_, begin);
-        if (end == std::string_view::npos)
-            return handler(std::move(tree), path_.substr(begin));
-        tree = tree.tryGetChild(path_.substr(begin, end - begin));
-        if (!tree)
-            break;
-        begin = end + 1;
-    }
-    return {};
-}
-
-inline std::tuple<ConfigTree, std::string_view> ConfigPath::getValueNode(ConfigTree tree) const
-{
-    return findNodeImpl<std::tuple<ConfigTree, std::string_view>>(std::move(tree),
-        [](auto node, auto key) noexcept -> std::tuple<ConfigTree, std::string_view> {
-            return {std::move(node), key};
-        });
-}
-
-inline ConfigTree ConfigPath::getChildNode(ConfigTree tree) const
-{
-    return findNodeImpl<ConfigTree>(std::move(tree),
-        [](auto node, auto key) noexcept { return std::move(node).tryGetChild(key); });
 }
 
 namespace literals {

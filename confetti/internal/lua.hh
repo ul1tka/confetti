@@ -143,6 +143,8 @@ public:
 
     [[nodiscard]] std::optional<std::string> tryGetString(std::string_view name) const override;
 
+    [[nodiscard]] std::vector<std::string> getKeyList() const override;
+
 private:
     struct SharedConstructTag final {
     };

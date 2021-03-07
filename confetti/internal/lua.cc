@@ -359,6 +359,21 @@ ConfigSourcePointer LuaSource::tryGetChild(std::string_view name) const
     return tryConvertToChild(getField(name));
 }
 
+std::vector<std::string> LuaSource::getKeyList() const
+{
+    std::vector<std::string> keys;
+    LuaStackGuard _{ref_};
+    lua_pushnil(ref_);
+    while (lua_next(ref_, -2) != 0) {
+        lua_pop(ref_, 1);
+        size_t size = 0;
+        auto name = lua_tolstring(ref_, -1, &size);
+        if (name != nullptr && size > 0)
+            keys.emplace_back(std::string{name, size});
+    }
+    return keys;
+}
+
 template <typename T>
 ConfigSourcePointer LuaSource::load(const T& source)
 {

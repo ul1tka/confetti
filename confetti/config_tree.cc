@@ -15,11 +15,43 @@
 //
 
 #include "config_tree.hh"
+#include "internal/levenshtein.hh"
 #include "internal/lua.hh"
 #include "internal/string.hh"
+#include <sstream>
 #include <stdexcept>
 
 namespace confetti {
+
+template <typename R, typename C>
+inline R ConfigPath::findNodeImpl(ConfigTree tree, const C& handler) const
+{
+    std::string_view::size_type begin = 0;
+    for (;;) {
+        const auto end = path_.find_first_of(sep_, begin);
+        if (end == std::string_view::npos)
+            return handler(std::move(tree), path_.substr(begin));
+        tree = tree.tryGetChild(path_.substr(begin, end - begin));
+        if (!tree)
+            break;
+        begin = end + 1;
+    }
+    return {};
+}
+
+std::tuple<ConfigTree, std::string_view> ConfigPath::getValueNode(ConfigTree tree) const
+{
+    return findNodeImpl<std::tuple<ConfigTree, std::string_view>>(std::move(tree),
+        [](auto node, auto key) noexcept -> std::tuple<ConfigTree, std::string_view> {
+            return {std::move(node), key};
+        });
+}
+
+ConfigTree ConfigPath::getChildNode(ConfigTree tree) const
+{
+    return findNodeImpl<ConfigTree>(std::move(tree),
+        [](auto node, auto key) noexcept { return std::move(node).tryGetChild(key); });
+}
 
 void ConfigTree::noSuchChild(int index)
 {
@@ -32,15 +64,40 @@ void ConfigTree::noSuchChild(std::string_view name)
     throw std::runtime_error{std::string{"Cannot find child config section "}.append(name)};
 }
 
-void ConfigTree::noSuchKey(int index)
+void ConfigTree::noSuchKey(int index) const
 {
     throw std::runtime_error{
         std::string{"Cannot find config value at index "}.append(std::to_string(index))};
 }
 
-void ConfigTree::noSuchKey(std::string_view name)
+void ConfigTree::noSuchKey(std::string_view name) const
 {
-    throw std::runtime_error{std::string{"Cannot find config value for key "}.append(name)};
+    std::ostringstream stream;
+    stream << "Cannot find configuration entry '" << name << "'.";
+
+    if (source_) {
+        auto lastDistance = std::numeric_limits<size_t>::max();
+        const auto keys = source_->getKeyList();
+        const std::string* suggestedKey = nullptr;
+        for (const auto& key : keys) {
+            const auto dist = internal::distance(name, key);
+            if (dist < lastDistance) {
+                suggestedKey = &key;
+                lastDistance = dist;
+            }
+        }
+        if (suggestedKey != nullptr)
+        {
+            stream << " Did you mean '" << *suggestedKey << "'?";
+        }
+    }
+
+    throw std::runtime_error{std::move(stream).str()};
+}
+
+ConfigTree ConfigTree::loadLuaCode(std::string_view code)
+{
+    return ConfigTree{internal::LuaSource::loadCode(code)};
 }
 
 ConfigTree ConfigTree::loadLuaFile(const std::filesystem::path& file)

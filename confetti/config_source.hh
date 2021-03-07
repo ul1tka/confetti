@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace confetti {
 
@@ -62,6 +63,8 @@ public:
     [[nodiscard]] virtual std::optional<std::string> tryGetString(int index) const = 0;
 
     [[nodiscard]] virtual std::optional<std::string> tryGetString(std::string_view name) const = 0;
+
+    [[nodiscard]] virtual std::vector<std::string> getKeyList() const = 0;
 
 private:
     template <typename T>

@@ -42,6 +42,16 @@ cfg.a = {
     }
 }
 
+cfg.some = {
+    deep = {
+        subtree = {
+            value = "value",
+            another_value = "another_value",
+            some_other_value = "some_other_value"
+        }
+    }
+}
+
 --
 -- Parse INI file using ini.lua
 -- See https://github.com/lzubiaur/ini.lua
