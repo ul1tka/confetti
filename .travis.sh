@@ -82,6 +82,8 @@ if [ "${BUILD_TYPE}" = "Coverage" ]; then
     coveralls \
         --gcov "${GCOV:=gcov}" \
         --gcov-options '\-lp' \
-        --exclude-pattern '.*/build/CMakeFiles/.*' \
-        --exclude-pattern '.*/build/_deps/.*'
+        -E '.*/build/CMakeFiles/.*' \
+        -E '.*/build/_deps/.*' \
+        -E '.*/build/lua_install/.*' \
+        -E '.*_test.cc'
 fi
